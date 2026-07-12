@@ -55,7 +55,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 .message{height:42px;color:#9fc8b1;font-size:13px;line-height:1.4}
 .inline{display:flex;gap:8px}.inline button{flex:1}
 .smallbtn{padding:12px;border-radius:10px;border:1px solid #28573d;background:#0b2117;color:#bfffd5}
-#enterCamera{display:none;background:var(--danger);color:white;border:0}
+#enterCamera{display:none;background:var(--danger);color:white;border:0;position:relative;z-index:50;pointer-events:auto}
 .signal{height:5px;background:#10291c;border-radius:10px;overflow:hidden;margin:8px 0 12px}.signal i{display:block;height:100%;width:10%;background:var(--green);box-shadow:0 0 12px var(--green);transition:width .3s}
 
 #camera{background:#000;flex-direction:column}
@@ -307,8 +307,9 @@ function updateHunt(){
  targetDistance=remaining;
  const dir=directionState();
 
- $('#distance').textContent=remaining+' ก้าว';
- $('#accuracy').textContent='เดินแล้ว '+stepsTaken+'/'+targetSteps+' • '+dir.label;
+ const approxMeters=Math.max(0, Math.round(remaining * 0.8));
+ $('#distance').textContent=approxMeters+' ม.';
+ $('#accuracy').textContent='ระยะประมาณ '+approxMeters+' เมตร • '+dir.label;
 
  const progress=stepsTaken/targetSteps;
  const directionPenalty=dir.ok?1:.35;
@@ -368,9 +369,17 @@ $('#recalibrate').onclick=()=>{
   toast('ตั้งทิศด้านหน้าใหม่แล้ว');
   updateHunt();
 };
-$('#enterCamera').onclick=enterCamera;
+
+const enterCameraButton = $('#enterCamera');
+enterCameraButton.addEventListener('click', (ev) => {
+  ev.preventDefault();
+  ev.stopPropagation();
+  enterCamera();
+});
+
 
 async function enterCamera(){
+ toast('กำลังเปิดกล้องวิญญาณ...');
  show('camera');
  // ผีอยู่ ณ จุดเดียวกับที่เรดาร์พาผู้เล่นมา ไม่สุ่มทิศใหม่
  ghostBearing=targetBearing;
