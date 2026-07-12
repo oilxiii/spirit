@@ -147,7 +147,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
     <span class="tape tl"></span><span class="tape br"></span>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div class="logo" style="margin-bottom:0">PARANORMAL FIELD UNIT</div>
-      <div class="case-id">BUILD V17</div>
+      <div class="case-id">BUILD V18</div>
     </div>
     <h1 style="margin-top:14px">SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
@@ -168,7 +168,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">EMF RESONANCE • V17</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">EMF RESONANCE • V18</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -444,9 +444,9 @@ function updateHunt(){
  $('#distance').textContent=emfDisplay+'%';
  $('#accuracy').textContent='EMF RESONANCE • '+emfDisplay+'% • '+dir.label;
 
- const progress=stepsTaken/targetSteps;
+ const signalProgress=stepsTaken/targetSteps;
  const directionPenalty=dir.ok?1:.35;
- const strength=Math.max(.06,Math.min(1,progress*directionPenalty));
+ const strength=Math.max(.06,Math.min(1,signalProgress*directionPenalty));
  $('#signalBar').style.width=(strength*100)+'%';
 
  if(remaining<=2){
