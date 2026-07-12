@@ -103,7 +103,6 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
       <div class="perm"><span>การหมุนและการเคลื่อนไหว</span><span id="motionState" class="state">รออนุญาต</span></div>
     </div>
     <button id="prepare" class="primary">เปิดระบบตรวจจับทั้งหมด</button>
-    <button id="demo" class="secondary">ทดลองแบบจำลอง</button>
     <div class="tiny">ควรเปิดผ่าน HTTPS บน Safari หรือ Chrome มือถือ ระหว่างเดินให้ระวังรถ พื้นต่างระดับ และสิ่งกีดขวาง เกมไม่บันทึกหรือส่งภาพออกจากเครื่อง</div>
   </div>
 </section>
@@ -126,7 +125,6 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
     <div class="signal"><i id="signalBar"></i></div>
     <div class="inline">
       <button id="recalibrate" class="smallbtn">ตั้งทิศใหม่</button>
-      <button id="simulateWalk" class="smallbtn">จำลองเดิน +3 ม.</button>
       <button id="enterCamera" class="smallbtn">เปิดกล้องวิญญาณ</button>
     </div>
   </div>
@@ -208,30 +206,72 @@ async function requestGPS(){
     },e=>{setState('#gpsState','ไม่อนุญาต',false);resolve()},{enableHighAccuracy:true,timeout:12000,maximumAge:0});
   });
 }
+function cameraErrorText(e){
+  if(!window.isSecureContext) return 'ต้องเปิดผ่าน HTTPS';
+  if(!navigator.mediaDevices?.getUserMedia) return 'เบราว์เซอร์ไม่รองรับ';
+  if(e?.name==='NotAllowedError' || e?.name==='SecurityError') return 'ไม่ได้รับอนุญาต';
+  if(e?.name==='NotFoundError' || e?.name==='DevicesNotFoundError') return 'ไม่พบกล้อง';
+  if(e?.name==='NotReadableError' || e?.name==='TrackStartError') return 'กล้องถูกใช้งานอยู่';
+  if(e?.name==='OverconstrainedError') return 'เปิดกล้องหลังไม่ได้';
+  return 'เปิดกล้องไม่สำเร็จ';
+}
+async function getRearCameraStream(){
+  if(!window.isSecureContext) throw new DOMException('Secure context required','SecurityError');
+  if(!navigator.mediaDevices?.getUserMedia) throw new DOMException('getUserMedia unavailable','NotSupportedError');
+  const attempts=[
+    {video:{facingMode:{exact:'environment'}},audio:false},
+    {video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false},
+    {video:true,audio:false}
+  ];
+  let lastError;
+  for(const constraints of attempts){
+    try{return await navigator.mediaDevices.getUserMedia(constraints)}
+    catch(e){lastError=e}
+  }
+  throw lastError;
+}
 async function requestCamera(){
   try{
-    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
-    permissions.cam=true;setState('#camState','พร้อมใช้งาน',true);s.getTracks().forEach(t=>t.stop());
-  }catch(e){setState('#camState','ไม่อนุญาต',false)}
+    const s=await getRearCameraStream();
+    permissions.cam=true;
+    setState('#camState','พร้อมใช้งาน',true);
+    s.getTracks().forEach(t=>t.stop());
+  }catch(e){
+    permissions.cam=false;
+    setState('#camState',cameraErrorText(e),false);
+    console.error('Camera permission error:',e);
+  }
 }
 $('#prepare').onclick=async()=>{
-  $('#prepare').disabled=true;$('#prepare').textContent='กำลังเตรียมอุปกรณ์…';initAudio();
-  await requestMotion(); await requestGPS(); await requestCamera();
-  $('#prepare').disabled=false;$('#prepare').textContent='เริ่มภารกิจ';
-  $('#prepare').onclick=()=>startGame(false);
-};
-$('#demo').onclick=()=>{initAudio();permissions={gps:true,cam:true,motion:true};startGame(true)};
+  const btn=$('#prepare');
+  btn.disabled=true;btn.textContent='กำลังเตรียมอุปกรณ์…';initAudio();
 
-function startGame(demo){
-  demoMode=demo;virtualDistance=null;show('hunt');
-  targetBearing=Math.floor(Math.random()*360);
-  if(demo){startPos={lat:13.7563,lon:100.5018};currentPos={...startPos,acc:5};targetDistance=18;targetPos=offset(startPos,targetDistance,targetBearing);virtualDistance=18;startSweepLogic();}
-  else{
-    if(!permissions.gps){demoMode=true;return startGame(true)}
-    startPos={lat:currentPos.lat,lon:currentPos.lon};targetDistance=12+Math.random()*10;targetPos=offset(startPos,targetDistance,targetBearing);
-    watchId=navigator.geolocation.watchPosition(onPosition,e=>toast('GPS ขัดข้อง ใช้การเดินจำลองแทนได้'),{enableHighAccuracy:true,maximumAge:1000,timeout:12000});
-    startSweepLogic();
+  // เรียกจากการกดของผู้ใช้โดยตรง เพื่อให้ Safari อนุญาต prompt ของเซนเซอร์
+  await requestMotion();
+  await Promise.all([requestGPS(),requestCamera()]);
+
+  btn.disabled=false;
+  if(!permissions.gps){
+    btn.textContent='ลองขอสิทธิ์อีกครั้ง';
+    toast('ต้องอนุญาตตำแหน่งก่อนเริ่มภารกิจ');
+    return;
   }
+  btn.textContent='เริ่มภารกิจ';
+  btn.onclick=startGame;
+};
+
+function startGame(){
+  demoMode=false;virtualDistance=null;show('hunt');
+  targetBearing=Math.floor(Math.random()*360);
+  startPos={lat:currentPos.lat,lon:currentPos.lon};
+  targetDistance=12+Math.random()*10;
+  targetPos=offset(startPos,targetDistance,targetBearing);
+  watchId=navigator.geolocation.watchPosition(
+    onPosition,
+    e=>toast('สัญญาณ GPS ขัดข้อง กรุณาออกไปยังพื้นที่เปิด'),
+    {enableHighAccuracy:true,maximumAge:1000,timeout:12000}
+  );
+  startSweepLogic();
 }
 function onPosition(p){
  currentPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};
@@ -270,20 +310,45 @@ function flashBlip(relative){
  const x=50+Math.cos(a)*r*100,y=50+Math.sin(a)*r*100,bl=$('#blip');
  bl.style.left=x+'%';bl.style.top=y+'%';bl.classList.remove('flash');void bl.offsetWidth;bl.classList.add('flash');
 }
-$('#simulateWalk').onclick=()=>{virtualDistance=Math.max(3,(virtualDistance??targetDistance)-3);targetDistance=virtualDistance;updateHunt()};
 $('#recalibrate').onclick=()=>{baselineHeading=heading;toast('ตั้งทิศอ้างอิงใหม่แล้ว')};
 $('#enterCamera').onclick=enterCamera;
 
 async function enterCamera(){
  if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}
- show('camera');ghostBearing=norm(heading+80+Math.random()*200);ghostPitch=65+Math.random()*35;
+ show('camera');
+ ghostBearing=norm(heading+80+Math.random()*200);
+ ghostPitch=65+Math.random()*35;
+ cameraReady=false;
+ const video=$('#video');
+ $('#camHint').textContent='กำลังเปิดกล้องหลัง…';
+ video.style.background='#000';
  try{
-   if(demoMode)throw Error('demo');
-   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
-   $('#video').srcObject=stream;await $('#video').play();cameraReady=true;
+   if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+   stream=await getRearCameraStream();
+   video.srcObject=stream;
+
+   await new Promise((resolve,reject)=>{
+     const timer=setTimeout(()=>reject(new DOMException('Camera start timeout','NotReadableError')),8000);
+     const ready=async()=>{
+       clearTimeout(timer);
+       try{await video.play();resolve()}catch(e){reject(e)}
+     };
+     if(video.readyState>=2) ready();
+     else video.addEventListener('loadedmetadata',ready,{once:true});
+   });
+
+   if(!video.videoWidth) throw new DOMException('No camera frames','NotReadableError');
+   cameraReady=true;
+   permissions.cam=true;
+   $('#camHint').textContent='หมุนตัวช้าๆ เพื่อค้นหาวิญญาณ';
  }catch(e){
-   cameraReady=false;$('#video').style.background='linear-gradient(145deg,#17231e,#020504 60%,#20342a)';
-   toast('ใช้พื้นหลังจำลองแทนกล้อง');
+   console.error('Camera open error:',e);
+   cameraReady=false;
+   permissions.cam=false;
+   video.srcObject=null;
+   const reason=cameraErrorText(e);
+   $('#camHint').textContent='เปิดกล้องไม่ได้: '+reason;
+   toast('เปิดกล้องไม่ได้: '+reason);
  }
 }
 function onOrientation(e){
@@ -330,6 +395,10 @@ function drawGhost(ctx,w,h,alpha){
  ctx.restore();
 }
 function capture(){
+ if(!cameraReady){
+   toast('ยังไม่สามารถเปิดกล้องได้');
+   return;
+ }
  const locked=$('#shutter').classList.contains('ready'),v=$('#video'),c=$('#photo'),ctx=c.getContext('2d');
  const w=1080,h=1440;c.width=w;c.height=h;
  if(cameraReady&&v.videoWidth){
@@ -349,7 +418,7 @@ function capture(){
  $('#resultSub').textContent=locked?'ภาพถูกสร้างบนอุปกรณ์ของคุณเท่านั้น':'ลองเข้าใกล้สัญญาณและจัดให้อยู่กลางกรอบมากขึ้น';
  show('result');beep(locked?1:.2,.25);
 }
-$('#again').onclick=()=>{orientationReceived=false;show('boot');$('#prepare').textContent='เริ่มภารกิจ';$('#prepare').onclick=()=>startGame(false)};
+$('#again').onclick=()=>{orientationReceived=false;cameraReady=false;show('boot');$('#prepare').textContent=permissions.gps?'เริ่มภารกิจ':'เปิดระบบตรวจจับทั้งหมด';$('#prepare').onclick=permissions.gps?startGame:async()=>location.reload()};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}});
 </script>
 </body>
