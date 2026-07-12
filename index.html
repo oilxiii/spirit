@@ -98,7 +98,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
     <h1>SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มภารกิจ ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
     <div class="permissions">
-      <div class="perm"><span>ตำแหน่ง GPS</span><span id="gpsState" class="state">รออนุญาต</span></div>
+      <div class="perm"><span>ระบบตรวจจับก้าว</span><span id="gpsState" class="state">รอเปิดใช้งาน</span></div>
       <div class="perm"><span>กล้องหลัง</span><span id="camState" class="state">รออนุญาต</span></div>
       <div class="perm"><span>การหมุนและการเคลื่อนไหว</span><span id="motionState" class="state">รออนุญาต</span></div>
     </div>
@@ -109,8 +109,8 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">GPS FIELD RADAR</div><div id="accuracy" style="font-size:10px;color:#607d6d">ACCURACY —</div></div>
-    <div id="distance" class="distance">-- m</div>
+    <div><div class="status-title">STEP TRACKER</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
     <div id="radar" class="radar">
@@ -124,7 +124,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
     <div id="huntMessage" class="message">กำลังค้นหาคลื่นพลังงานผิดปกติ…</div>
     <div class="signal"><i id="signalBar"></i></div>
     <div class="inline">
-      <button id="recalibrate" class="smallbtn">ตั้งทิศใหม่</button>
+      <button id="recalibrate" class="smallbtn">ตั้งทิศปัจจุบันเป็นด้านหน้า</button>
       <button id="enterCamera" class="smallbtn">เปิดกล้องวิญญาณ</button>
     </div>
   </div>
@@ -172,7 +172,13 @@ let watchId=null, stream=null, startPos=null, targetPos=null, currentPos=null;
 let targetBearing=0, targetDistance=18, virtualDistance=null;
 let heading=0, baselineHeading=null, ghostBearing=0, ghostPitch=78, lastSweepSector=-1;
 let audioCtx=null, beepGain=null, beepOsc=null, cameraReady=false;
+let stepsTaken=0, targetSteps=0;
 let orientationReceived=false, stepCooldown=0;
+let sweepTimer=null;
+let gravityMagnitude=9.81, filteredStepSignal=0, stepArmed=true;
+let lastAcceptedStep=0, lastMotionTime=0, wrongDirectionUntil=0;
+let targetRelativeAngle=0, huntStartHeading=0;
+let lastBeta=80;
 
 function show(name){Object.values(screens).forEach(x=>x.classList.remove('active'));screens[name].classList.add('active')}
 function setState(id,text,ok){const el=$(id);el.textContent=text;el.className='state '+(ok?'ok':'bad')}
@@ -197,15 +203,13 @@ async function requestMotion(){
     permissions.motion=true;setState('#motionState','พร้อมใช้งาน',true);
   }catch(e){setState('#motionState','ไม่อนุญาต',false)}
 }
+
 async function requestGPS(){
-  return new Promise(resolve=>{
-    if(!navigator.geolocation){setState('#gpsState','ไม่รองรับ',false);return resolve()}
-    navigator.geolocation.getCurrentPosition(p=>{
-      permissions.gps=true; currentPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};
-      setState('#gpsState','พร้อมใช้งาน',true);resolve();
-    },e=>{setState('#gpsState','ไม่อนุญาต',false);resolve()},{enableHighAccuracy:true,timeout:12000,maximumAge:0});
-  });
+  permissions.gps=true;
+  setState('#gpsState','พร้อมใช้งาน',true);
+  return {ok:true};
 }
+
 function cameraErrorText(e){
   if(!window.isSecureContext) return 'ต้องเปิดผ่าน HTTPS';
   if(!navigator.mediaDevices?.getUserMedia) return 'เบราว์เซอร์ไม่รองรับ';
@@ -244,64 +248,112 @@ async function requestCamera(){
 }
 $('#prepare').onclick=async()=>{
   const btn=$('#prepare');
-  btn.disabled=true;btn.textContent='กำลังเตรียมอุปกรณ์…';initAudio();
+  btn.disabled=true;
+  btn.textContent='กำลังขอเครื่องนับก้าว…';
+  initAudio();
 
-  // เรียกจากการกดของผู้ใช้โดยตรง เพื่อให้ Safari อนุญาต prompt ของเซนเซอร์
+  await requestGPS();
+  btn.textContent='กำลังเตรียมกล้องและเซนเซอร์…';
   await requestMotion();
-  await Promise.all([requestGPS(),requestCamera()]);
+  await requestCamera();
 
   btn.disabled=false;
-  if(!permissions.gps){
-    btn.textContent='ลองขอสิทธิ์อีกครั้ง';
-    toast('ต้องอนุญาตตำแหน่งก่อนเริ่มภารกิจ');
-    return;
-  }
   btn.textContent='เริ่มภารกิจ';
   btn.onclick=startGame;
 };
+$('#reloadPage').onclick=()=>location.reload();
+
 
 function startGame(){
-  demoMode=false;virtualDistance=null;show('hunt');
-  targetBearing=Math.floor(Math.random()*360);
-  startPos={lat:currentPos.lat,lon:currentPos.lon};
-  targetDistance=12+Math.random()*10;
-  targetPos=offset(startPos,targetDistance,targetBearing);
-  watchId=navigator.geolocation.watchPosition(
-    onPosition,
-    e=>toast('สัญญาณ GPS ขัดข้อง กรุณาออกไปยังพื้นที่เปิด'),
-    {enableHighAccuracy:true,maximumAge:1000,timeout:12000}
-  );
+  demoMode=false;
+  virtualDistance=null;
+  stepsTaken=0;
+  targetSteps=7 + Math.floor(Math.random()*7);
+  targetDistance=targetSteps;
+
+  gravityMagnitude=9.81;
+  filteredStepSignal=0;
+  stepArmed=true;
+  lastAcceptedStep=0;
+  wrongDirectionUntil=0;
+
+  // สุ่มจุดในห้องโดยอิงจากทิศที่ผู้เล่นกำลังหันอยู่
+  huntStartHeading=heading || 0;
+  const sideChoices=[-105,-75,-45,45,75,105,150];
+  targetRelativeAngle=sideChoices[Math.floor(Math.random()*sideChoices.length)];
+  targetBearing=norm(huntStartHeading+targetRelativeAngle);
+
+  show('hunt');
+  updateHunt();
   startSweepLogic();
 }
+
 function onPosition(p){
  currentPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};
  targetDistance=virtualDistance!==null?virtualDistance:hav(currentPos,targetPos);
  targetBearing=bearing(currentPos,targetPos);updateHunt();
 }
+
+function directionState(){
+  if(!orientationReceived) return {error:0,label:'เดินสำรวจได้เลย',ok:true};
+  const error=angleDiff(heading,targetBearing);
+  if(error<=38) return {error,label:'ทิศถูกต้อง',ok:true};
+  if(error<=70) return {error,label:'ปรับทิศอีกเล็กน้อย',ok:false};
+  return {error,label:'กำลังเดินผิดทิศ',ok:false};
+}
+
 function updateHunt(){
- const d=Math.max(0,targetDistance);
- $('#distance').textContent=d<10?d.toFixed(1)+' m':Math.round(d)+' m';
- $('#accuracy').textContent='ACCURACY ±'+Math.round(currentPos?.acc||0)+' m';
- const strength=Math.max(.05,Math.min(1,1-d/25));$('#signalBar').style.width=(strength*100)+'%';
- if(d<=7){
-   $('#huntMessage').textContent='ตรวจพบต้นกำเนิดสัญญาณในบริเวณนี้';
+ const remaining=Math.max(0,targetSteps-stepsTaken);
+ targetDistance=remaining;
+ const dir=directionState();
+
+ $('#distance').textContent=remaining+' ก้าว';
+ $('#accuracy').textContent='เดินแล้ว '+stepsTaken+'/'+targetSteps+' • '+dir.label;
+
+ const progress=stepsTaken/targetSteps;
+ const directionPenalty=dir.ok?1:.35;
+ const strength=Math.max(.06,Math.min(1,progress*directionPenalty));
+ $('#signalBar').style.width=(strength*100)+'%';
+
+ if(remaining<=0){
+   $('#huntMessage').textContent='พบต้นกำเนิดสัญญาณแล้ว หยุดเดินและเปิดกล้อง';
    $('#enterCamera').style.display='block';
-   if(navigator.vibrate)navigator.vibrate([80,60,80]);
+ }else if(Date.now()<wrongDirectionUntil){
+   $('#huntMessage').textContent='ทิศนี้สัญญาณอ่อนลง หันกลับไปหาจุดที่เรดาร์กวาดพบ';
+   $('#enterCamera').style.display='none';
+ }else if(!dir.ok){
+   $('#huntMessage').textContent=dir.error>70
+     ? 'อย่าเดินต่อ หันไปทางจุดที่ปรากฏบนเรดาร์ก่อน'
+     : 'ปรับทิศให้ตรงกับจุดบนเรดาร์แล้วจึงเดินต่อ';
+   $('#enterCamera').style.display='none';
+ }else if(remaining<=3){
+   $('#huntMessage').textContent='สัญญาณรุนแรงมาก เดินตรงไปอีกไม่กี่ก้าว';
+   $('#enterCamera').style.display='none';
  }else{
-   $('#huntMessage').textContent=d<12?'สัญญาณแรงมาก เดินต่ออย่างระมัดระวัง':'จดจำทิศของจุดเมื่อเรดาร์กวาดผ่าน';
+   $('#huntMessage').textContent='จำตำแหน่งจุดตอนเส้นกวาดผ่าน แล้วเดินไปทางนั้น';
    $('#enterCamera').style.display='none';
  }
 }
+
 function startSweepLogic(){
  updateHunt();
- setInterval(()=>{
-   if(!screens.hunt.classList.contains('active'))return;
-   const elapsed=(performance.now()/3200)%1,sweepDeg=elapsed*360;
+ if(sweepTimer) clearInterval(sweepTimer);
+ sweepTimer=setInterval(()=>{
+   if(!screens.hunt.classList.contains('active')) return;
+
+   const elapsed=(performance.now()/3200)%1;
+   const sweepDeg=elapsed*360;
    const relative=norm(targetBearing-(heading||0));
    const diff=angleDiff(sweepDeg,relative);
    const sector=Math.floor(sweepDeg/12);
+
    if(diff<7 && sector!==lastSweepSector){
-     lastSweepSector=sector;flashBlip(relative);beep(Math.max(.15,1-targetDistance/30),.1);
+     lastSweepSector=sector;
+     flashBlip(relative);
+
+     const dir=directionState();
+     const proximity=Math.max(.15,stepsTaken/Math.max(1,targetSteps));
+     beep(dir.ok?proximity:proximity*.35,.1);
    }
  },60);
 }
@@ -310,14 +362,19 @@ function flashBlip(relative){
  const x=50+Math.cos(a)*r*100,y=50+Math.sin(a)*r*100,bl=$('#blip');
  bl.style.left=x+'%';bl.style.top=y+'%';bl.classList.remove('flash');void bl.offsetWidth;bl.classList.add('flash');
 }
-$('#recalibrate').onclick=()=>{baselineHeading=heading;toast('ตั้งทิศอ้างอิงใหม่แล้ว')};
+$('#recalibrate').onclick=()=>{
+  huntStartHeading=heading||0;
+  targetBearing=norm(huntStartHeading+targetRelativeAngle);
+  toast('ตั้งทิศด้านหน้าใหม่แล้ว');
+  updateHunt();
+};
 $('#enterCamera').onclick=enterCamera;
 
 async function enterCamera(){
- if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}
  show('camera');
- ghostBearing=norm(heading+80+Math.random()*200);
- ghostPitch=65+Math.random()*35;
+ // ผีอยู่ ณ จุดเดียวกับที่เรดาร์พาผู้เล่นมา ไม่สุ่มทิศใหม่
+ ghostBearing=targetBearing;
+ ghostPitch=70+Math.random()*22;
  cameraReady=false;
  const video=$('#video');
  $('#camHint').textContent='กำลังเปิดกล้องหลัง…';
@@ -354,23 +411,76 @@ async function enterCamera(){
 function onOrientation(e){
  orientationReceived=true;
  let h;
- if(typeof e.webkitCompassHeading==='number')h=e.webkitCompassHeading;
- else if(e.alpha!==null)h=norm(360-e.alpha);
- if(typeof h==='number')heading=h;
- if(screens.camera.classList.contains('active'))updateCamera(e.beta??80);
+ if(typeof e.webkitCompassHeading==='number') h=e.webkitCompassHeading;
+ else if(e.alpha!==null) h=norm(360-e.alpha);
+
+ if(typeof h==='number') heading=h;
+ if(typeof e.beta==='number') lastBeta=e.beta;
+
+ if(screens.hunt.classList.contains('active')) updateHunt();
+ if(screens.camera.classList.contains('active')) updateCamera(e.beta??lastBeta);
 }
+
 function onMotion(e){
- const a=e.accelerationIncludingGravity;if(!a)return;
- const mag=Math.abs(a.x||0)+Math.abs(a.y||0)+Math.abs((a.z||0)-9.8),now=Date.now();
- if(screens.hunt.classList.contains('active')&&mag>5&&now>stepCooldown){
-   stepCooldown=now+500;
-   if(virtualDistance===null && (currentPos?.acc||99)>8)virtualDistance=targetDistance;
-   if(virtualDistance!==null){virtualDistance=Math.max(3,virtualDistance-.75);targetDistance=virtualDistance;updateHunt()}
+ const a=e.accelerationIncludingGravity;
+ if(!a) return;
+
+ const now=Date.now();
+ lastMotionTime=now;
+
+ // แยกแรงโน้มถ่วงออกจากแรงกระแทกแบบ low-pass
+ const magnitude=Math.sqrt(
+   (a.x||0)*(a.x||0)+
+   (a.y||0)*(a.y||0)+
+   (a.z||0)*(a.z||0)
+ );
+ gravityMagnitude=gravityMagnitude*.9+magnitude*.1;
+ const linear=magnitude-gravityMagnitude;
+ filteredStepSignal=filteredStepSignal*.68+linear*.32;
+
+ // การสะบัดมือถือมักมีแรงสูงและมีอัตราหมุนสูงกว่าการเดิน
+ const r=e.rotationRate||{};
+ const rotationSpeed=Math.abs(r.alpha||0)+Math.abs(r.beta||0)+Math.abs(r.gamma||0);
+ const looksLikeShake=Math.abs(filteredStepSignal)>5.2 || rotationSpeed>240;
+
+ if(filteredStepSignal<-0.28) stepArmed=true;
+
+ const interval=now-lastAcceptedStep;
+ const cadenceOK=lastAcceptedStep===0 || interval>330;
+ const stepPeak=filteredStepSignal>0.82;
+
+ if(
+   screens.hunt.classList.contains('active') &&
+   stepArmed && stepPeak && cadenceOK && !looksLikeShake
+ ){
+   stepArmed=false;
+
+   const dir=directionState();
+   if(!dir.ok){
+     wrongDirectionUntil=now+1300;
+     updateHunt();
+     if(navigator.vibrate) navigator.vibrate([35,45,35]);
+     return;
+   }
+
+   lastAcceptedStep=now;
+   if(stepsTaken<targetSteps){
+     stepsTaken++;
+     updateHunt();
+     beep(Math.min(1,.25+stepsTaken/targetSteps),.08);
+     if(navigator.vibrate) navigator.vibrate(22);
+
+     if(stepsTaken===targetSteps){
+       if(navigator.vibrate) navigator.vibrate([100,70,100,70,180]);
+       beep(1,.22);
+     }
+   }
  }
 }
+
 function updateCamera(beta){
  const dH=angleDiff(heading,ghostBearing),dP=Math.abs(beta-ghostPitch);
- const score=Math.max(0,1-dH/58)*Math.max(.25,1-dP/55);
+ const score=Math.max(0,1-dH/52)*Math.max(.2,1-dP/48);
  $('#headingText').textContent='AZIMUTH '+Math.round(heading).toString().padStart(3,'0')+'°';
  $('#emf').textContent=(score*9.9).toFixed(1);
  const g=$('#ghost');g.classList.toggle('visible',score>.46);g.classList.toggle('lock',score>.78);
@@ -418,8 +528,19 @@ function capture(){
  $('#resultSub').textContent=locked?'ภาพถูกสร้างบนอุปกรณ์ของคุณเท่านั้น':'ลองเข้าใกล้สัญญาณและจัดให้อยู่กลางกรอบมากขึ้น';
  show('result');beep(locked?1:.2,.25);
 }
-$('#again').onclick=()=>{orientationReceived=false;cameraReady=false;show('boot');$('#prepare').textContent=permissions.gps?'เริ่มภารกิจ':'เปิดระบบตรวจจับทั้งหมด';$('#prepare').onclick=permissions.gps?startGame:async()=>location.reload()};
+$('#again').onclick=()=>{
+  cameraReady=false;
+  $('#ghost').classList.remove('visible','lock');
+  $('#shutter').classList.remove('ready');
+  startGame();
+};
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}});
+if(!window.isSecureContext){
+  setState('#gpsState','ต้องใช้ HTTPS',false);
+  setState('#camState','ต้องใช้ HTTPS',false);
+  $('#prepare').disabled=true;
+  $('#prepare').textContent='กรุณาเปิดผ่าน HTTPS';
+}
 </script>
 </body>
 </html>
