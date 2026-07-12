@@ -147,7 +147,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
     <span class="tape tl"></span><span class="tape br"></span>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div class="logo" style="margin-bottom:0">PARANORMAL FIELD UNIT</div>
-      <div class="case-id">BUILD V15</div>
+      <div class="case-id">BUILD V16</div>
     </div>
     <h1 style="margin-top:14px">SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
@@ -168,7 +168,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">FIELD SCANNER • V15</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">EMF RESONANCE • V16</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -185,7 +185,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
     <div class="inline" id="radarControls">
       <button id="recalibrate" class="smallbtn">ตั้งทิศปัจจุบันเป็นด้านหน้า</button>
     </div>
-    <button id="enterCamera" type="button" class="smallbtn" style="margin-top:8px;width:100%">เปิดกล้องวิญญาณ</button>
+    <button id="enterCamera" type="button" class="smallbtn" style="margin-top:8px;width:100%">วิเคราะห์ความผิดปกติ</button>
   </div>
 </section>
 
@@ -245,7 +245,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
 <section id="result" class="screen">
   <div class="photo-card">
     <canvas id="photo"></canvas>
-    <div id="resultTitle" class="resultTitle">ถ่ายติดวิญญาณ</div>
+    <div id="resultTitle" class="resultTitle">บันทึกสัญญาณสำเร็จ</div>
     <div id="resultSub" class="resultSub"></div>
 
     <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:14px">
@@ -431,10 +431,9 @@ function updateHunt(){
  targetDistance=remaining;
  const dir=directionState();
 
- const approxMeters=Math.max(0, Math.round(remaining * 0.8));
- const anomalyUnits=Math.max(1, Math.round(remaining*1.7));
- $('#distance').textContent=anomalyUnits+' หน่วย';
- $('#accuracy').textContent='ค่าความผิดปกติ '+anomalyUnits+' หน่วย • '+dir.label;
+ const progress=Math.max(0, Math.min(100, Math.round((stepsTaken/Math.max(1,targetSteps))*100)));
+ $('#distance').textContent=progress+'%';
+ $('#accuracy').textContent='EMF RESONANCE • '+progress+'% • '+dir.label;
 
  const progress=stepsTaken/targetSteps;
  const directionPenalty=dir.ok?1:.35;
@@ -801,7 +800,7 @@ function capture(){
  ctx.fillStyle='#d8ffe8';ctx.font='28px monospace';ctx.fillText('SPIRIT RADAR / CASE '+String(Math.floor(Math.random()*9999)).padStart(4,'0'),72,h-95);
  ctx.font='22px monospace';ctx.fillText(new Date().toLocaleString('th-TH'),72,h-58);
  if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
- $('#resultTitle').textContent=locked?'ถ่ายติดวิญญาณ':'พบเพียงร่องรอย';
+ $('#resultTitle').textContent=locked?'บันทึกสัญญาณสำเร็จ':'พบเพียงร่องรอย';
  $('#resultSub').textContent=locked?'ภาพถูกสร้างบนอุปกรณ์ของคุณเท่านั้น':'ลองเข้าใกล้สัญญาณและจัดให้อยู่กลางกรอบมากขึ้น';
  show('result');beep(locked?1:.2,.25);
 }
