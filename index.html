@@ -136,7 +136,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
     </div>
 
     <button id="goBoot" class="primary" style="margin-top:20px">
-      ตามหาเรื่องลึกลับด้วยมือถือเครื่องนี้
+      ตามหาสิ่งนั้นด้วยมือถือเครื่องนี้
     </button>
   </div>
 </section>
@@ -147,7 +147,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
     <span class="tape tl"></span><span class="tape br"></span>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div class="logo" style="margin-bottom:0">PARANORMAL FIELD UNIT</div>
-      <div class="case-id">BUILD V16</div>
+      <div class="case-id">BUILD V17</div>
     </div>
     <h1 style="margin-top:14px">SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
@@ -168,7 +168,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">EMF RESONANCE • V16</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">EMF RESONANCE • V17</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -432,8 +432,17 @@ function updateHunt(){
  const dir=directionState();
 
  const progress=Math.max(0, Math.min(100, Math.round((stepsTaken/Math.max(1,targetSteps))*100)));
- $('#distance').textContent=progress+'%';
- $('#accuracy').textContent='EMF RESONANCE • '+progress+'% • '+dir.label;
+ const jitterRange = Math.max(1, Math.round((100-progress) / 8));
+ const emfDisplay = Math.max(
+   0,
+   Math.min(
+     100,
+     progress + Math.round((Math.random() * 2 - 1) * jitterRange)
+   )
+ );
+
+ $('#distance').textContent=emfDisplay+'%';
+ $('#accuracy').textContent='EMF RESONANCE • '+emfDisplay+'% • '+dir.label;
 
  const progress=stepsTaken/targetSteps;
  const directionPenalty=dir.ok?1:.35;
