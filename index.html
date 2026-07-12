@@ -96,9 +96,29 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 </head>
 <body>
 
-<section id="boot" class="screen active">
+<section id="intro" class="screen active" style="align-items:center;justify-content:center;padding:24px;background:
+radial-gradient(circle at 50% 20%,#10241b 0,transparent 40%), #020806">
   <div class="card">
-    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V12</div>
+    <div class="logo">FIELD REPORT ARCHIVE</div>
+    <h1>ยังมีบางสิ่ง<br>ที่อธิบายไม่ได้</h1>
+    <div class="sub" style="margin-top:16px">
+      ตลอดหลายทศวรรษที่ผ่านมา มีรายงานเกี่ยวกับเงาปริศนา เสียงที่ไม่มีต้นตอ
+      และปรากฏการณ์ผิดปกติที่เกิดขึ้นทั่วโลก
+      <br><br>
+      นักวิจัยบางคนเชื่อว่า สิ่งเหล่านั้นยังคงอยู่รอบตัวเรา
+      และอาจอยู่ใกล้กว่าที่คุณคิด
+    </div>
+
+    <button id="goBoot" class="primary" style="margin-top:20px">
+      ตามหาเรื่องลึกลับด้วยมือถือเครื่องนี้
+    </button>
+  </div>
+</section>
+
+
+<section id="boot" class="screen">
+  <div class="card">
+    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V13</div>
     <h1>SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
     <div class="permissions">
@@ -118,7 +138,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">FIELD SCANNER • V12</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">FIELD SCANNER • V13</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -189,10 +209,29 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 </section>
 <div id="toast" class="toast"></div>
 
+<div id="jumpScare" style="
+position:fixed;
+inset:0;
+display:none;
+z-index:99999;
+background:rgba(0,0,0,.92);
+align-items:center;
+justify-content:center;
+pointer-events:none;
+">
+  <div id="jumpGhost" style="
+    font-size:220px;
+    filter:drop-shadow(0 0 40px white);
+    transform:scale(.2);
+    transition:transform .7s ease-out, opacity .7s ease-out;
+  ">👻</div>
+</div>
+
+
 <script>
 'use strict';
 const $=s=>document.querySelector(s);
-const screens={boot:$('#boot'),hunt:$('#hunt'),camera:$('#camera'),result:$('#result')};
+const screens={intro:$('#intro'),boot:$('#boot'),hunt:$('#hunt'),camera:$('#camera'),result:$('#result')};
 let demoMode=false, permissions={gps:false,cam:false,motion:false};
 let watchId=null, stream=null, startPos=null, targetPos=null, currentPos=null;
 let targetBearing=0, targetDistance=18, virtualDistance=null;
@@ -206,7 +245,16 @@ let lastAcceptedStep=0, lastMotionTime=0, wrongDirectionUntil=0;
 let targetRelativeAngle=0, huntStartHeading=0;
 let lastBeta=80;
 
-function show(name){Object.values(screens).forEach(x=>x.classList.remove('active'));screens[name].classList.add('active')}
+function show(name){
+  Object.values(screens).forEach(x=>x.classList.remove('active'));
+  screens[name].classList.add('active');
+}
+document.addEventListener('DOMContentLoaded',()=>{
+  const introBtn=document.getElementById('goBoot');
+  if(introBtn){
+    introBtn.onclick=()=>show('boot');
+  }
+});
 function setState(id,text,ok){const el=$(id);if(!el)return;el.textContent=text;el.className='state '+(ok?'ok':'bad')}
 function toast(t){const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2200)}
 function norm(a){return (a%360+360)%360}
@@ -398,9 +446,38 @@ $('#recalibrate').onclick=()=>{
 
 
 
+
+async function playJumpScare(){
+  const wrap=document.getElementById('jumpScare');
+  const ghost=document.getElementById('jumpGhost');
+
+  wrap.style.display='flex';
+  ghost.style.opacity='1';
+  ghost.style.transform='scale(.2)';
+  void ghost.offsetWidth;
+
+  if(navigator.vibrate){
+    navigator.vibrate([80,40,80]);
+  }
+
+  setTimeout(()=>{
+    ghost.style.transform='scale(2.8)';
+  },50);
+
+  await new Promise(r=>setTimeout(r,900));
+
+  ghost.style.opacity='0';
+
+  await new Promise(r=>setTimeout(r,450));
+  wrap.style.display='none';
+  ghost.style.opacity='1';
+  ghost.style.transform='scale(.2)';
+}
+
 async function enterCamera(){
   // เปลี่ยนหน้าเป็นโหมดไจโรสโคปทันที เหมือนเวอร์ชันแรก
   show('camera');
+  await playJumpScare();
 
   ghostBearing=targetBearing;
   ghostPitch=70+Math.random()*22;
