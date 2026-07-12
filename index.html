@@ -98,7 +98,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="boot" class="screen active">
   <div class="card">
-    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V10</div>
+    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V11</div>
     <h1>SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
     <div class="permissions">
@@ -113,7 +113,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">FIELD SCANNER • V10</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">FIELD SCANNER • V11</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -170,7 +170,16 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
     <canvas id="photo"></canvas>
     <div id="resultTitle" class="resultTitle">ถ่ายติดวิญญาณ</div>
     <div id="resultSub" class="resultSub"></div>
-    <button id="again" class="primary">เริ่มค้นหาใหม่</button>
+
+    <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:14px">
+      <button id="savePhoto" class="secondary" style="flex:1;margin-top:0">
+        บันทึกรูปลงเครื่อง
+      </button>
+
+      <button id="again" class="primary" style="flex:1">
+        เริ่มค้นหาใหม่
+      </button>
+    </div>
   </div>
 </section>
 <div id="toast" class="toast"></div>
@@ -587,21 +596,41 @@ function capture(){
  show('result');beep(locked?1:.2,.25);
 }
 
-$('#savePhoto').onclick=()=>{
-  const canvas=document.getElementById('photo');
-  const link=document.createElement('a');
-  link.download='spirit-photo-'+Date.now()+'.png';
-  link.href=canvas.toDataURL('image/png');
-  link.click();
-  toast('บันทึกรูปแล้ว');
+
+$('#savePhoto').onclick = () => {
+  const canvas = document.getElementById('photo');
+
+  try{
+    const link = document.createElement('a');
+    link.download = 'spirit-photo-' + Date.now() + '.png';
+    link.href = canvas.toDataURL('image/png');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    toast('บันทึกรูปแล้ว');
+  }catch(e){
+    console.error(e);
+    toast('ไม่สามารถบันทึกรูปได้');
+  }
 };
 
-$('#again').onclick=()=>{
-  cameraReady=false;
+$('#again').onclick = () => {
+  cameraReady = false;
+
+  if(stream){
+    stream.getTracks().forEach(track => track.stop());
+    stream = null;
+  }
+
   $('#ghost').classList.remove('visible','lock');
   $('#shutter').classList.remove('ready');
+
+  show('hunt');
   startGame();
+
+  toast('เริ่มค้นหาใหม่');
 };
+
 document.addEventListener('visibilitychange',()=>{if(document.hidden&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}});
 if(!window.isSecureContext){
   setState('#gpsState','ต้องใช้ HTTPS',false);
