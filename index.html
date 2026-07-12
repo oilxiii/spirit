@@ -1,0 +1,356 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+<meta name="theme-color" content="#020806">
+<title>SPIRIT RADAR — เครื่องตรวจจับวิญญาณ</title>
+<style>
+:root{
+  --green:#64ff9b; --dim:#173d2a; --bg:#020806; --panel:#07140f;
+  --danger:#ff4a4a; --amber:#ffc857;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%;overflow:hidden;background:var(--bg);color:#dfffea;font-family:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+button{font:inherit}
+.screen{position:fixed;inset:0;display:none;overflow:hidden}
+.screen.active{display:flex}
+#boot{align-items:center;justify-content:center;padding:24px;background:
+ radial-gradient(circle at 50% 20%,#0b271b 0,transparent 38%),#020806}
+.card{width:min(440px,100%);border:1px solid #276240;background:#06130eeb;padding:22px;border-radius:18px;box-shadow:0 0 40px #0aff7a15}
+.logo{font-size:12px;letter-spacing:.28em;color:#79ffa9;margin-bottom:12px}
+h1{font-size:28px;line-height:1.05;margin:0 0 10px}
+.sub{color:#88a997;font-size:13px;line-height:1.55}
+.permissions{display:grid;gap:8px;margin:18px 0}
+.perm{display:flex;justify-content:space-between;gap:10px;border-bottom:1px solid #183526;padding:9px 0;font-size:13px}
+.state{color:#789484}.state.ok{color:var(--green)}.state.bad{color:#ff8c8c}
+.primary,.secondary{width:100%;border-radius:12px;padding:15px;border:0;font-weight:800;letter-spacing:.04em}
+.primary{background:var(--green);color:#031008}
+.primary:disabled{opacity:.45}
+.secondary{margin-top:10px;background:#102a1e;color:#caffe0;border:1px solid #28573d}
+.tiny{font-size:11px;color:#648071;line-height:1.5;margin-top:12px}
+
+#hunt{flex-direction:column;background:
+ linear-gradient(#021008bb,#020806),repeating-linear-gradient(0deg,#04130e 0 1px,#020806 1px 4px)}
+.topbar{height:70px;padding:env(safe-area-inset-top) 16px 0;display:flex;align-items:center;justify-content:space-between;border-bottom:1px solid #163b29}
+.status-title{font-size:11px;letter-spacing:.18em;color:#78a58d}
+.distance{font-size:24px;color:var(--green);text-shadow:0 0 12px #64ff9b66}
+.radar-wrap{flex:1;display:grid;place-items:center;padding:12px;min-height:0}
+.radar{position:relative;width:min(82vw,55vh,430px);aspect-ratio:1;border-radius:50%;overflow:hidden;
+ border:2px solid #2a7048;background:
+ radial-gradient(circle,#0b2518 0 2%,transparent 2.4%),
+ repeating-radial-gradient(circle,transparent 0 24%,#1a5435 24.5% 25%,transparent 25.5% 49%),
+ repeating-conic-gradient(from 0deg,#143c2818 0 9deg,#06170f00 9deg 18deg),
+ #04110b;box-shadow:inset 0 0 45px #000,0 0 25px #22ff7716}
+.radar:before,.radar:after{content:"";position:absolute;background:#225c3b}
+.radar:before{left:50%;top:0;width:1px;height:100%}.radar:after{top:50%;left:0;height:1px;width:100%}
+.sweep{position:absolute;inset:-1px;border-radius:50%;background:conic-gradient(from -9deg,transparent 0 82%,#64ff9b05 87%,#64ff9b66 99%,#baffce 100%);animation:sweep 3.2s linear infinite}
+@keyframes sweep{to{transform:rotate(360deg)}}
+.blip{position:absolute;width:13px;height:13px;border-radius:50%;background:#caffda;box-shadow:0 0 8px 3px #58ff91,0 0 22px 9px #58ff9155;opacity:0;transform:translate(-50%,-50%)}
+.blip.flash{animation:blipfade 1.25s ease-out}
+@keyframes blipfade{0%{opacity:0}10%{opacity:1}100%{opacity:0;transform:translate(-50%,-50%) scale(1.8)}}
+.center-dot{position:absolute;left:50%;top:50%;width:12px;height:12px;transform:translate(-50%,-50%);border-radius:50%;background:var(--green);box-shadow:0 0 12px var(--green);z-index:3}
+.bearing{position:absolute;left:50%;top:3%;transform:translateX(-50%);font-size:10px;color:#4d8465}
+.hunt-bottom{padding:8px 16px calc(12px + env(safe-area-inset-bottom));text-align:center}
+.message{height:42px;color:#9fc8b1;font-size:13px;line-height:1.4}
+.inline{display:flex;gap:8px}.inline button{flex:1}
+.smallbtn{padding:12px;border-radius:10px;border:1px solid #28573d;background:#0b2117;color:#bfffd5}
+#enterCamera{display:none;background:var(--danger);color:white;border:0}
+.signal{height:5px;background:#10291c;border-radius:10px;overflow:hidden;margin:8px 0 12px}.signal i{display:block;height:100%;width:10%;background:var(--green);box-shadow:0 0 12px var(--green);transition:width .3s}
+
+#camera{background:#000;flex-direction:column}
+#video{position:absolute;inset:0;width:100%;height:100%;object-fit:cover}
+.camShade{position:absolute;inset:0;background:radial-gradient(circle at center,transparent 35%,#00150c55 75%,#000b)}
+.scanlines{position:absolute;inset:0;pointer-events:none;background:repeating-linear-gradient(0deg,transparent 0 3px,#8affb508 3px 4px)}
+.camHud{position:absolute;inset:0;padding:calc(14px + env(safe-area-inset-top)) 14px calc(14px + env(safe-area-inset-bottom));display:flex;flex-direction:column;justify-content:space-between}
+.camTop{display:flex;justify-content:space-between;align-items:flex-start;text-shadow:0 2px 8px #000}
+.camTitle{font-size:11px;letter-spacing:.18em}.emf{font-size:28px;color:var(--green)}
+.reticle{position:absolute;left:50%;top:50%;width:190px;height:190px;transform:translate(-50%,-50%);border:1px solid #8affaa66;border-radius:50%}
+.reticle:before,.reticle:after{content:"";position:absolute;background:#8affaa88}
+.reticle:before{left:50%;top:-20px;width:1px;height:230px}.reticle:after{top:50%;left:-20px;height:1px;width:230px}
+.ghost{position:absolute;left:50%;top:49%;width:min(46vw,240px);transform:translate(-50%,-50%);opacity:0;filter:drop-shadow(0 0 16px #d7fff0aa);transition:opacity .12s,transform .12s;pointer-events:none}
+.ghost.visible{opacity:.15}
+.ghost.lock{opacity:.72;animation:ghostPulse .85s infinite alternate}
+@keyframes ghostPulse{to{filter:drop-shadow(0 0 32px white);transform:translate(-50%,-50%) scale(1.035)}}
+.camBottom{text-align:center}
+.hint{font-size:12px;text-shadow:0 2px 8px #000;margin-bottom:10px}
+.shutter{width:76px;height:76px;border-radius:50%;border:6px solid white;background:#ffffff55;box-shadow:0 0 0 3px #0008;margin:auto}
+.shutter.ready{background:white;box-shadow:0 0 24px #fff}
+.miniRadar{position:absolute;right:14px;top:90px;width:88px;height:88px;border:1px solid #69ff9b88;border-radius:50%;background:#00130cb5;overflow:hidden}
+.miniRadar .sweep{animation-duration:1.8s}
+.miniDot{position:absolute;left:50%;top:12%;width:7px;height:7px;border-radius:50%;background:#ff5151;opacity:0;box-shadow:0 0 10px red}
+.miniDot.on{animation:mini .8s}
+@keyframes mini{0%{opacity:1}100%{opacity:0}}
+
+#result{align-items:center;justify-content:center;background:#030504;padding:18px}
+.photo-card{width:min(480px,100%);text-align:center}
+#photo{width:100%;max-height:68vh;object-fit:contain;background:#111;border:8px solid #e9e1d3;box-shadow:0 18px 40px #000}
+.resultTitle{font-size:24px;margin:14px 0 4px;color:#e8fff0}
+.resultSub{font-size:12px;color:#8aa497;margin-bottom:12px}
+.toast{position:fixed;left:50%;bottom:24px;transform:translateX(-50%);background:#101a15e8;border:1px solid #486656;color:white;padding:10px 14px;border-radius:10px;display:none;z-index:20;font-size:12px}
+</style>
+</head>
+<body>
+
+<section id="boot" class="screen active">
+  <div class="card">
+    <div class="logo">PARANORMAL FIELD UNIT</div>
+    <h1>SPIRIT<br>RADAR</h1>
+    <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มภารกิจ ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
+    <div class="permissions">
+      <div class="perm"><span>ตำแหน่ง GPS</span><span id="gpsState" class="state">รออนุญาต</span></div>
+      <div class="perm"><span>กล้องหลัง</span><span id="camState" class="state">รออนุญาต</span></div>
+      <div class="perm"><span>การหมุนและการเคลื่อนไหว</span><span id="motionState" class="state">รออนุญาต</span></div>
+    </div>
+    <button id="prepare" class="primary">เปิดระบบตรวจจับทั้งหมด</button>
+    <button id="demo" class="secondary">ทดลองแบบจำลอง</button>
+    <div class="tiny">ควรเปิดผ่าน HTTPS บน Safari หรือ Chrome มือถือ ระหว่างเดินให้ระวังรถ พื้นต่างระดับ และสิ่งกีดขวาง เกมไม่บันทึกหรือส่งภาพออกจากเครื่อง</div>
+  </div>
+</section>
+
+<section id="hunt" class="screen">
+  <header class="topbar">
+    <div><div class="status-title">GPS FIELD RADAR</div><div id="accuracy" style="font-size:10px;color:#607d6d">ACCURACY —</div></div>
+    <div id="distance" class="distance">-- m</div>
+  </header>
+  <div class="radar-wrap">
+    <div id="radar" class="radar">
+      <div class="bearing">N</div>
+      <div class="sweep"></div>
+      <div id="blip" class="blip"></div>
+      <div class="center-dot"></div>
+    </div>
+  </div>
+  <div class="hunt-bottom">
+    <div id="huntMessage" class="message">กำลังค้นหาคลื่นพลังงานผิดปกติ…</div>
+    <div class="signal"><i id="signalBar"></i></div>
+    <div class="inline">
+      <button id="recalibrate" class="smallbtn">ตั้งทิศใหม่</button>
+      <button id="simulateWalk" class="smallbtn">จำลองเดิน +3 ม.</button>
+      <button id="enterCamera" class="smallbtn">เปิดกล้องวิญญาณ</button>
+    </div>
+  </div>
+</section>
+
+<section id="camera" class="screen">
+  <video id="video" autoplay playsinline muted></video>
+  <div class="camShade"></div><div class="scanlines"></div>
+  <svg id="ghost" class="ghost" viewBox="0 0 240 360" aria-hidden="true">
+    <defs><filter id="blur"><feGaussianBlur stdDeviation="1.4"/></filter></defs>
+    <g fill="#eafff5" filter="url(#blur)">
+      <ellipse cx="120" cy="78" rx="43" ry="55" opacity=".75"/>
+      <path d="M81 92 C56 122 54 203 64 269 C72 319 42 335 38 351 C81 337 91 314 99 278 C104 324 113 344 121 358 C132 332 139 310 141 275 C153 320 177 340 206 350 C191 327 177 305 180 269 C187 193 180 121 157 93 Z" opacity=".63"/>
+      <ellipse cx="104" cy="73" rx="8" ry="13" fill="#06100c"/><ellipse cx="137" cy="73" rx="8" ry="13" fill="#06100c"/>
+      <ellipse cx="121" cy="104" rx="13" ry="7" fill="#06100c"/>
+    </g>
+  </svg>
+  <div class="reticle"></div>
+  <div class="miniRadar"><div class="sweep"></div><div id="miniDot" class="miniDot"></div></div>
+  <div class="camHud">
+    <div class="camTop"><div><div class="camTitle">SPECTRAL CAMERA</div><div id="headingText" style="font-size:11px">AZIMUTH —</div></div><div><div class="camTitle">EMF</div><div id="emf" class="emf">0.0</div></div></div>
+    <div class="camBottom">
+      <div id="camHint" class="hint">หมุนตัวช้าๆ เพื่อค้นหาวิญญาณ</div>
+      <button id="shutter" class="shutter" aria-label="ถ่ายภาพ"></button>
+    </div>
+  </div>
+</section>
+
+<section id="result" class="screen">
+  <div class="photo-card">
+    <canvas id="photo"></canvas>
+    <div id="resultTitle" class="resultTitle">ถ่ายติดวิญญาณ</div>
+    <div id="resultSub" class="resultSub"></div>
+    <button id="again" class="primary">เริ่มภารกิจใหม่</button>
+  </div>
+</section>
+<div id="toast" class="toast"></div>
+
+<script>
+'use strict';
+const $=s=>document.querySelector(s);
+const screens={boot:$('#boot'),hunt:$('#hunt'),camera:$('#camera'),result:$('#result')};
+let demoMode=false, permissions={gps:false,cam:false,motion:false};
+let watchId=null, stream=null, startPos=null, targetPos=null, currentPos=null;
+let targetBearing=0, targetDistance=18, virtualDistance=null;
+let heading=0, baselineHeading=null, ghostBearing=0, ghostPitch=78, lastSweepSector=-1;
+let audioCtx=null, beepGain=null, beepOsc=null, cameraReady=false;
+let orientationReceived=false, stepCooldown=0;
+
+function show(name){Object.values(screens).forEach(x=>x.classList.remove('active'));screens[name].classList.add('active')}
+function setState(id,text,ok){const el=$(id);el.textContent=text;el.className='state '+(ok?'ok':'bad')}
+function toast(t){const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2200)}
+function norm(a){return (a%360+360)%360}
+function angleDiff(a,b){let d=Math.abs(norm(a)-norm(b));return Math.min(d,360-d)}
+function hav(a,b){const R=6371000,p=Math.PI/180,d1=(b.lat-a.lat)*p,d2=(b.lon-a.lon)*p;const q=Math.sin(d1/2)**2+Math.cos(a.lat*p)*Math.cos(b.lat*p)*Math.sin(d2/2)**2;return 2*R*Math.asin(Math.sqrt(q))}
+function bearing(a,b){const p=Math.PI/180,y=Math.sin((b.lon-a.lon)*p)*Math.cos(b.lat*p),x=Math.cos(a.lat*p)*Math.sin(b.lat*p)-Math.sin(a.lat*p)*Math.cos(b.lat*p)*Math.cos((b.lon-a.lon)*p);return norm(Math.atan2(y,x)/p)}
+function offset(origin,meters,deg){const R=6378137,p=Math.PI/180,d=meters/R,b=deg*p,lat1=origin.lat*p,lon1=origin.lon*p;const lat2=Math.asin(Math.sin(lat1)*Math.cos(d)+Math.cos(lat1)*Math.sin(d)*Math.cos(b));const lon2=lon1+Math.atan2(Math.sin(b)*Math.sin(d)*Math.cos(lat1),Math.cos(d)-Math.sin(lat1)*Math.sin(lat2));return{lat:lat2/p,lon:lon2/p}}
+function initAudio(){if(audioCtx)return;audioCtx=new (window.AudioContext||window.webkitAudioContext)();beepGain=audioCtx.createGain();beepGain.gain.value=0;beepGain.connect(audioCtx.destination);beepOsc=audioCtx.createOscillator();beepOsc.type='sine';beepOsc.frequency.value=740;beepOsc.connect(beepGain);beepOsc.start()}
+function beep(strength=.4,dur=.09){if(!audioCtx)return;const t=audioCtx.currentTime;beepOsc.frequency.setValueAtTime(580+strength*700,t);beepGain.gain.cancelScheduledValues(t);beepGain.gain.setValueAtTime(0,t);beepGain.gain.linearRampToValueAtTime(.08+strength*.12,t+.01);beepGain.gain.exponentialRampToValueAtTime(.001,t+dur)}
+async function requestMotion(){
+  try{
+    if(typeof DeviceOrientationEvent!=='undefined' && typeof DeviceOrientationEvent.requestPermission==='function'){
+      const r=await DeviceOrientationEvent.requestPermission(); if(r!=='granted')throw Error('denied');
+    }
+    if(typeof DeviceMotionEvent!=='undefined' && typeof DeviceMotionEvent.requestPermission==='function'){
+      const r=await DeviceMotionEvent.requestPermission(); if(r!=='granted')throw Error('denied');
+    }
+    window.addEventListener('deviceorientation',onOrientation,true);
+    window.addEventListener('devicemotion',onMotion,true);
+    permissions.motion=true;setState('#motionState','พร้อมใช้งาน',true);
+  }catch(e){setState('#motionState','ไม่อนุญาต',false)}
+}
+async function requestGPS(){
+  return new Promise(resolve=>{
+    if(!navigator.geolocation){setState('#gpsState','ไม่รองรับ',false);return resolve()}
+    navigator.geolocation.getCurrentPosition(p=>{
+      permissions.gps=true; currentPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};
+      setState('#gpsState','พร้อมใช้งาน',true);resolve();
+    },e=>{setState('#gpsState','ไม่อนุญาต',false);resolve()},{enableHighAccuracy:true,timeout:12000,maximumAge:0});
+  });
+}
+async function requestCamera(){
+  try{
+    const s=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'}},audio:false});
+    permissions.cam=true;setState('#camState','พร้อมใช้งาน',true);s.getTracks().forEach(t=>t.stop());
+  }catch(e){setState('#camState','ไม่อนุญาต',false)}
+}
+$('#prepare').onclick=async()=>{
+  $('#prepare').disabled=true;$('#prepare').textContent='กำลังเตรียมอุปกรณ์…';initAudio();
+  await requestMotion(); await requestGPS(); await requestCamera();
+  $('#prepare').disabled=false;$('#prepare').textContent='เริ่มภารกิจ';
+  $('#prepare').onclick=()=>startGame(false);
+};
+$('#demo').onclick=()=>{initAudio();permissions={gps:true,cam:true,motion:true};startGame(true)};
+
+function startGame(demo){
+  demoMode=demo;virtualDistance=null;show('hunt');
+  targetBearing=Math.floor(Math.random()*360);
+  if(demo){startPos={lat:13.7563,lon:100.5018};currentPos={...startPos,acc:5};targetDistance=18;targetPos=offset(startPos,targetDistance,targetBearing);virtualDistance=18;startSweepLogic();}
+  else{
+    if(!permissions.gps){demoMode=true;return startGame(true)}
+    startPos={lat:currentPos.lat,lon:currentPos.lon};targetDistance=12+Math.random()*10;targetPos=offset(startPos,targetDistance,targetBearing);
+    watchId=navigator.geolocation.watchPosition(onPosition,e=>toast('GPS ขัดข้อง ใช้การเดินจำลองแทนได้'),{enableHighAccuracy:true,maximumAge:1000,timeout:12000});
+    startSweepLogic();
+  }
+}
+function onPosition(p){
+ currentPos={lat:p.coords.latitude,lon:p.coords.longitude,acc:p.coords.accuracy};
+ targetDistance=virtualDistance!==null?virtualDistance:hav(currentPos,targetPos);
+ targetBearing=bearing(currentPos,targetPos);updateHunt();
+}
+function updateHunt(){
+ const d=Math.max(0,targetDistance);
+ $('#distance').textContent=d<10?d.toFixed(1)+' m':Math.round(d)+' m';
+ $('#accuracy').textContent='ACCURACY ±'+Math.round(currentPos?.acc||0)+' m';
+ const strength=Math.max(.05,Math.min(1,1-d/25));$('#signalBar').style.width=(strength*100)+'%';
+ if(d<=7){
+   $('#huntMessage').textContent='ตรวจพบต้นกำเนิดสัญญาณในบริเวณนี้';
+   $('#enterCamera').style.display='block';
+   if(navigator.vibrate)navigator.vibrate([80,60,80]);
+ }else{
+   $('#huntMessage').textContent=d<12?'สัญญาณแรงมาก เดินต่ออย่างระมัดระวัง':'จดจำทิศของจุดเมื่อเรดาร์กวาดผ่าน';
+   $('#enterCamera').style.display='none';
+ }
+}
+function startSweepLogic(){
+ updateHunt();
+ setInterval(()=>{
+   if(!screens.hunt.classList.contains('active'))return;
+   const elapsed=(performance.now()/3200)%1,sweepDeg=elapsed*360;
+   const relative=norm(targetBearing-(heading||0));
+   const diff=angleDiff(sweepDeg,relative);
+   const sector=Math.floor(sweepDeg/12);
+   if(diff<7 && sector!==lastSweepSector){
+     lastSweepSector=sector;flashBlip(relative);beep(Math.max(.15,1-targetDistance/30),.1);
+   }
+ },60);
+}
+function flashBlip(relative){
+ const r=Math.min(.43,.12+Math.min(25,targetDistance)/25*.31),a=(relative-90)*Math.PI/180;
+ const x=50+Math.cos(a)*r*100,y=50+Math.sin(a)*r*100,bl=$('#blip');
+ bl.style.left=x+'%';bl.style.top=y+'%';bl.classList.remove('flash');void bl.offsetWidth;bl.classList.add('flash');
+}
+$('#simulateWalk').onclick=()=>{virtualDistance=Math.max(3,(virtualDistance??targetDistance)-3);targetDistance=virtualDistance;updateHunt()};
+$('#recalibrate').onclick=()=>{baselineHeading=heading;toast('ตั้งทิศอ้างอิงใหม่แล้ว')};
+$('#enterCamera').onclick=enterCamera;
+
+async function enterCamera(){
+ if(watchId!==null){navigator.geolocation.clearWatch(watchId);watchId=null}
+ show('camera');ghostBearing=norm(heading+80+Math.random()*200);ghostPitch=65+Math.random()*35;
+ try{
+   if(demoMode)throw Error('demo');
+   stream=await navigator.mediaDevices.getUserMedia({video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:720}},audio:false});
+   $('#video').srcObject=stream;await $('#video').play();cameraReady=true;
+ }catch(e){
+   cameraReady=false;$('#video').style.background='linear-gradient(145deg,#17231e,#020504 60%,#20342a)';
+   toast('ใช้พื้นหลังจำลองแทนกล้อง');
+ }
+}
+function onOrientation(e){
+ orientationReceived=true;
+ let h;
+ if(typeof e.webkitCompassHeading==='number')h=e.webkitCompassHeading;
+ else if(e.alpha!==null)h=norm(360-e.alpha);
+ if(typeof h==='number')heading=h;
+ if(screens.camera.classList.contains('active'))updateCamera(e.beta??80);
+}
+function onMotion(e){
+ const a=e.accelerationIncludingGravity;if(!a)return;
+ const mag=Math.abs(a.x||0)+Math.abs(a.y||0)+Math.abs((a.z||0)-9.8),now=Date.now();
+ if(screens.hunt.classList.contains('active')&&mag>5&&now>stepCooldown){
+   stepCooldown=now+500;
+   if(virtualDistance===null && (currentPos?.acc||99)>8)virtualDistance=targetDistance;
+   if(virtualDistance!==null){virtualDistance=Math.max(3,virtualDistance-.75);targetDistance=virtualDistance;updateHunt()}
+ }
+}
+function updateCamera(beta){
+ const dH=angleDiff(heading,ghostBearing),dP=Math.abs(beta-ghostPitch);
+ const score=Math.max(0,1-dH/58)*Math.max(.25,1-dP/55);
+ $('#headingText').textContent='AZIMUTH '+Math.round(heading).toString().padStart(3,'0')+'°';
+ $('#emf').textContent=(score*9.9).toFixed(1);
+ const g=$('#ghost');g.classList.toggle('visible',score>.46);g.classList.toggle('lock',score>.78);
+ $('#shutter').classList.toggle('ready',score>.72);
+ $('#camHint').textContent=score>.78?'ตรวจพบวิญญาณ — ถ่ายเดี๋ยวนี้!':score>.45?'สัญญาณอยู่ใกล้มาก…':'หมุนตัวช้าๆ เพื่อค้นหาวิญญาณ';
+ if(score>.55){const dot=$('#miniDot');dot.classList.remove('on');void dot.offsetWidth;dot.classList.add('on')}
+ if(score>.78&&navigator.vibrate)navigator.vibrate(35);
+}
+setInterval(()=>{
+ if(screens.camera.classList.contains('active')&&!orientationReceived){
+   heading=norm(heading+1.2);updateCamera(ghostPitch);
+ }
+},50);
+
+$('#shutter').onclick=()=>capture();
+function drawGhost(ctx,w,h,alpha){
+ ctx.save();ctx.globalAlpha=alpha;ctx.translate(w/2,h*.48);const s=Math.min(w/240,h/360)*.48;ctx.scale(s,s);
+ ctx.shadowColor='white';ctx.shadowBlur=28;ctx.fillStyle='#eafff5';
+ ctx.beginPath();ctx.ellipse(0,-90,43,55,0,0,Math.PI*2);ctx.fill();
+ ctx.beginPath();ctx.moveTo(-39,-76);ctx.bezierCurveTo(-64,-46,-66,35,-56,101);ctx.bezierCurveTo(-48,151,-78,167,-82,183);ctx.bezierCurveTo(-39,169,-29,146,-21,110);ctx.bezierCurveTo(-16,156,-7,176,1,190);ctx.bezierCurveTo(12,164,19,142,21,107);ctx.bezierCurveTo(33,152,57,172,86,182);ctx.bezierCurveTo(71,159,57,137,60,101);ctx.bezierCurveTo(67,25,60,-47,37,-75);ctx.closePath();ctx.fill();
+ ctx.fillStyle='#07100d';ctx.beginPath();ctx.ellipse(-16,-95,8,13,0,0,Math.PI*2);ctx.ellipse(17,-95,8,13,0,0,Math.PI*2);ctx.fill();
+ ctx.restore();
+}
+function capture(){
+ const locked=$('#shutter').classList.contains('ready'),v=$('#video'),c=$('#photo'),ctx=c.getContext('2d');
+ const w=1080,h=1440;c.width=w;c.height=h;
+ if(cameraReady&&v.videoWidth){
+   const scale=Math.max(w/v.videoWidth,h/v.videoHeight),sw=w/scale,sh=h/scale,sx=(v.videoWidth-sw)/2,sy=(v.videoHeight-sh)/2;
+   ctx.drawImage(v,sx,sy,sw,sh,0,0,w,h);
+ }else{
+   const gr=ctx.createLinearGradient(0,0,w,h);gr.addColorStop(0,'#1b2922');gr.addColorStop(1,'#020504');ctx.fillStyle=gr;ctx.fillRect(0,0,w,h);
+ }
+ ctx.fillStyle='rgba(0,40,20,.12)';ctx.fillRect(0,0,w,h);
+ if(locked)drawGhost(ctx,w,h,.58); else if($('#ghost').classList.contains('visible'))drawGhost(ctx,w,h,.13);
+ ctx.strokeStyle='rgba(180,255,210,.18)';for(let y=0;y<h;y+=7){ctx.beginPath();ctx.moveTo(0,y);ctx.lineTo(w,y);ctx.stroke()}
+ ctx.fillStyle='rgba(0,0,0,.55)';ctx.fillRect(42,h-145,w-84,92);
+ ctx.fillStyle='#d8ffe8';ctx.font='28px monospace';ctx.fillText('SPIRIT RADAR / CASE '+String(Math.floor(Math.random()*9999)).padStart(4,'0'),72,h-95);
+ ctx.font='22px monospace';ctx.fillText(new Date().toLocaleString('th-TH'),72,h-58);
+ if(stream){stream.getTracks().forEach(t=>t.stop());stream=null}
+ $('#resultTitle').textContent=locked?'ถ่ายติดวิญญาณ':'พบเพียงร่องรอย';
+ $('#resultSub').textContent=locked?'ภาพถูกสร้างบนอุปกรณ์ของคุณเท่านั้น':'ลองเข้าใกล้สัญญาณและจัดให้อยู่กลางกรอบมากขึ้น';
+ show('result');beep(locked?1:.2,.25);
+}
+$('#again').onclick=()=>{orientationReceived=false;show('boot');$('#prepare').textContent='เริ่มภารกิจ';$('#prepare').onclick=()=>startGame(false)};
+document.addEventListener('visibilitychange',()=>{if(document.hidden&&stream){stream.getTracks().forEach(t=>t.stop());stream=null}});
+</script>
+</body>
+</html>
