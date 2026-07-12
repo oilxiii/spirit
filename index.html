@@ -98,14 +98,19 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="boot" class="screen active">
   <div class="card">
-    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V11</div>
+    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V12</div>
     <h1>SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
     <div class="permissions">
       <div class="perm"><span>ระบบตรวจจับก้าว</span><span id="gpsState" class="state">รอเปิดใช้งาน</span></div>
       <div class="perm"><span>กล้องหลัง</span><span id="camState" class="state">รออนุญาต</span></div>
       <div class="perm"><span>การหมุนและการเคลื่อนไหว</span><span id="motionState" class="state">รออนุญาต</span></div>
+      <div class="perm"><span>การบันทึกรูปภาพ</span><span id="shareState" class="state">รอยืนยัน</span></div>
     </div>
+    <label id="saveConsentBox" style="display:flex;gap:10px;align-items:flex-start;margin:15px 0 12px;padding:12px;border:1px solid #28573d;border-radius:10px;background:#091b13;font-size:12px;line-height:1.5;color:#caffe0">
+      <input id="saveConsent" type="checkbox" style="margin-top:3px;transform:scale(1.2)">
+      <span>ฉันเข้าใจว่าเมื่อถ่ายภาพเสร็จ ระบบจะเปิดเมนูแชร์ของ iPhone และฉันต้องเลือก <b>บันทึกรูปภาพ</b> เพื่อเก็บภาพลงในแอป Photos</span>
+    </label>
     <button id="prepare" class="primary">เปิดระบบตรวจจับทั้งหมด</button>
     <div class="tiny">ควรเปิดผ่าน HTTPS บน Safari หรือ Chrome มือถือ ระหว่างเดินให้ระวังรถ พื้นต่างระดับ และสิ่งกีดขวาง เกมไม่บันทึกหรือส่งภาพออกจากเครื่อง</div>
   </div>
@@ -113,7 +118,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">FIELD SCANNER • V11</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">FIELD SCANNER • V12</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -173,7 +178,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
     <div style="display:flex;gap:10px;justify-content:center;align-items:center;margin-top:14px">
       <button id="savePhoto" class="secondary" style="flex:1;margin-top:0">
-        บันทึกรูปลงเครื่อง
+        บันทึกลง Photos
       </button>
 
       <button id="again" class="primary" style="flex:1">
@@ -597,20 +602,44 @@ function capture(){
 }
 
 
-$('#savePhoto').onclick = () => {
+$('#savePhoto').onclick = async () => {
   const canvas = document.getElementById('photo');
+  const button = $('#savePhoto');
+  button.disabled = true;
+  button.textContent = 'กำลังเตรียมรูป…';
 
   try{
-    const link = document.createElement('a');
-    link.download = 'spirit-photo-' + Date.now() + '.png';
-    link.href = canvas.toDataURL('image/png');
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-    toast('บันทึกรูปแล้ว');
-  }catch(e){
-    console.error(e);
-    toast('ไม่สามารถบันทึกรูปได้');
+    const blob = await new Promise((resolve, reject) => {
+      canvas.toBlob(value => value ? resolve(value) : reject(new Error('สร้างไฟล์รูปไม่ได้')), 'image/png');
+    });
+
+    const filename = 'spirit-photo-' + Date.now() + '.png';
+    const file = new File([blob], filename, {type:'image/png'});
+
+    if(navigator.share && (!navigator.canShare || navigator.canShare({files:[file]}))){
+      await navigator.share({
+        files:[file],
+        title:'ภาพปรากฏการณ์ผิดปกติ'
+      });
+      toast('เลือก “บันทึกรูปภาพ” เพื่อเก็บลง Photos');
+    }else{
+      const link = document.createElement('a');
+      link.download = filename;
+      link.href = URL.createObjectURL(blob);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(() => URL.revokeObjectURL(link.href), 1000);
+      toast('เครื่องนี้ไม่รองรับเมนูแชร์ รูปถูกส่งไปยัง Downloads');
+    }
+  }catch(error){
+    if(error?.name !== 'AbortError'){
+      console.error('Save/share error:', error);
+      toast('ไม่สามารถเปิดเมนูบันทึกรูปได้');
+    }
+  }finally{
+    button.disabled = false;
+    button.textContent = 'บันทึกลง Photos';
   }
 };
 
