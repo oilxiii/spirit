@@ -98,7 +98,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="boot" class="screen active">
   <div class="card">
-    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V9</div>
+    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V10</div>
     <h1>SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
     <div class="permissions">
@@ -113,7 +113,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">FIELD SCANNER • V9</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">FIELD SCANNER • V10</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -526,11 +526,40 @@ setInterval(()=>{
 
 $('#shutter').onclick=()=>capture();
 function drawGhost(ctx,w,h,alpha){
- ctx.save();ctx.globalAlpha=alpha;ctx.translate(w/2,h*.48);const s=Math.min(w/240,h/360)*.48;ctx.scale(s,s);
- ctx.shadowColor='white';ctx.shadowBlur=28;ctx.fillStyle='#eafff5';
- ctx.beginPath();ctx.ellipse(0,-90,43,55,0,0,Math.PI*2);ctx.fill();
- ctx.beginPath();ctx.moveTo(-39,-76);ctx.bezierCurveTo(-64,-46,-66,35,-56,101);ctx.bezierCurveTo(-48,151,-78,167,-82,183);ctx.bezierCurveTo(-39,169,-29,146,-21,110);ctx.bezierCurveTo(-16,156,-7,176,1,190);ctx.bezierCurveTo(12,164,19,142,21,107);ctx.bezierCurveTo(33,152,57,172,86,182);ctx.bezierCurveTo(71,159,57,137,60,101);ctx.bezierCurveTo(67,25,60,-47,37,-75);ctx.closePath();ctx.fill();
- ctx.fillStyle='#07100d';ctx.beginPath();ctx.ellipse(-16,-95,8,13,0,0,Math.PI*2);ctx.ellipse(17,-95,8,13,0,0,Math.PI*2);ctx.fill();
+ ctx.save();
+ ctx.globalAlpha=alpha;
+ ctx.translate(w/2,h*.48);
+
+ const s=Math.min(w/260,h/360)*0.55;
+ ctx.scale(s,s);
+
+ ctx.shadowColor='white';
+ ctx.shadowBlur=32;
+
+ ctx.fillStyle='#eefdf4';
+ ctx.beginPath();
+ ctx.moveTo(130,28);
+ ctx.bezierCurveTo(82,28,52,72,52,135);
+ ctx.bezierCurveTo(52,214,64,266,48,330);
+ ctx.bezierCurveTo(78,315,88,296,101,270);
+ ctx.bezierCurveTo(111,305,120,326,130,342);
+ ctx.bezierCurveTo(140,322,149,300,159,270);
+ ctx.bezierCurveTo(172,298,184,316,212,330);
+ ctx.bezierCurveTo(196,268,208,214,208,135);
+ ctx.bezierCurveTo(208,72,178,28,130,28);
+ ctx.closePath();
+ ctx.fill();
+
+ ctx.fillStyle='#09110c';
+ ctx.beginPath();
+ ctx.arc(105,122,8,0,Math.PI*2);
+ ctx.arc(155,122,8,0,Math.PI*2);
+ ctx.fill();
+
+ ctx.beginPath();
+ ctx.ellipse(130,158,10,18,0,0,Math.PI*2);
+ ctx.fill();
+
  ctx.restore();
 }
 function capture(){
