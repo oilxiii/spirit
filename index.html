@@ -118,7 +118,7 @@ radial-gradient(circle at 50% 20%,#10241b 0,transparent 40%), #020806">
 
 <section id="boot" class="screen">
   <div class="card">
-    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V13</div>
+    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V14</div>
     <h1>SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
     <div class="permissions">
@@ -138,7 +138,7 @@ radial-gradient(circle at 50% 20%,#10241b 0,transparent 40%), #020806">
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">FIELD SCANNER • V13</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">FIELD SCANNER • V14</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -209,23 +209,21 @@ radial-gradient(circle at 50% 20%,#10241b 0,transparent 40%), #020806">
 </section>
 <div id="toast" class="toast"></div>
 
+
 <div id="jumpScare" style="
-position:fixed;
-inset:0;
-display:none;
-z-index:99999;
-background:rgba(0,0,0,.92);
-align-items:center;
-justify-content:center;
-pointer-events:none;
-">
-  <div id="jumpGhost" style="
-    font-size:220px;
-    filter:drop-shadow(0 0 40px white);
-    transform:scale(.2);
-    transition:transform .7s ease-out, opacity .7s ease-out;
-  ">👻</div>
+position:fixed; inset:0; display:none; z-index:99999;
+background:rgba(0,0,0,.18);
+align-items:center; justify-content:center;
+pointer-events:none;">
+  <div id="jumpGhostWrap" style="
+    width:260px;height:360px;
+    transform:scale(.15);
+    opacity:0;
+    transition:transform .8s ease-out, opacity .8s ease-out;">
+  </div>
 </div>
+</div>
+
 
 
 <script>
@@ -243,6 +241,7 @@ let sweepTimer=null;
 let gravityMagnitude=9.81, filteredStepSignal=0, stepArmed=true;
 let lastAcceptedStep=0, lastMotionTime=0, wrongDirectionUntil=0;
 let targetRelativeAngle=0, huntStartHeading=0;
+let ghostMoveTimer=null;
 let lastBeta=80;
 
 function show(name){
@@ -447,39 +446,61 @@ $('#recalibrate').onclick=()=>{
 
 
 
+
 async function playJumpScare(){
   const wrap=document.getElementById('jumpScare');
-  const ghost=document.getElementById('jumpGhost');
+  const holder=document.getElementById('jumpGhostWrap');
+
+  // ใช้ผีตัวเดียวกับในเกม
+  holder.innerHTML=document.getElementById('ghost').outerHTML;
 
   wrap.style.display='flex';
-  ghost.style.opacity='1';
-  ghost.style.transform='scale(.2)';
-  void ghost.offsetWidth;
+  holder.style.opacity='1';
+  holder.style.transform='scale(.15)';
+
+  void holder.offsetWidth;
 
   if(navigator.vibrate){
-    navigator.vibrate([80,40,80]);
+    navigator.vibrate([100,60,100]);
   }
 
   setTimeout(()=>{
-    ghost.style.transform='scale(2.8)';
-  },50);
+    holder.style.transform='scale(2.8)';
+  },80);
 
   await new Promise(r=>setTimeout(r,900));
 
-  ghost.style.opacity='0';
+  holder.style.opacity='0';
 
   await new Promise(r=>setTimeout(r,450));
+
   wrap.style.display='none';
-  ghost.style.opacity='1';
-  ghost.style.transform='scale(.2)';
+  holder.innerHTML='';
+}
+
+function startGhostMovement(){
+  if(ghostMoveTimer) clearInterval(ghostMoveTimer);
+
+  ghostMoveTimer=setInterval(()=>{
+    // เคลื่อนจากจุดเดิมทีละน้อย ไม่วาร์ป
+    const delta=(Math.random()*80)-40;
+    ghostBearing=norm(ghostBearing + delta);
+
+    ghostPitch=Math.max(
+      55,
+      Math.min(
+        95,
+        ghostPitch + (Math.random()*14 - 7)
+      )
+    );
+  },5000);
 }
 
 async function enterCamera(){
   // เปลี่ยนหน้าเป็นโหมดไจโรสโคปทันที เหมือนเวอร์ชันแรก
   show('camera');
-  await playJumpScare();
 
-  ghostBearing=targetBearing;
+  ghostBearing=norm(targetBearing + (Math.random()*140 - 70));
   ghostPitch=70+Math.random()*22;
   cameraReady=false;
 
@@ -513,6 +534,8 @@ async function enterCamera(){
 
     cameraReady=true;
     permissions.cam=true;
+    await playJumpScare();
+    startGhostMovement();
     $('#camHint').textContent='หมุนตัวช้าๆ เพื่อค้นหาวิญญาณ';
   }catch(error){
     console.error('Camera open error:',error);
