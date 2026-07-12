@@ -241,7 +241,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
     <span class="tape tl"></span><span class="tape br"></span>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div class="logo" style="margin-bottom:0">PARANORMAL FIELD UNIT</div>
-      <div class="case-id">BUILD V26</div>
+      <div class="case-id">BUILD V30</div>
     </div>
     <h1 style="margin-top:14px">SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
@@ -262,7 +262,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">EMF RESONANCE • V26</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">EMF RESONANCE • V30</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -1148,58 +1148,56 @@ if(!window.isSecureContext){
 
 
 
-// ===== CINEMATIC SCI-FI BGM =====
+
+
+// ===== JAZZY SCI-FI BGM =====
 let bgmStarted=false;
 let bgmMaster=null;
-let bgmIntervals=[];
+let bgmMuted=false;
+let bgmLoop=null;
 
-function bgmNote(freq,duration,type='triangle',volume=.02){
-  if(!audioCtx || !bgmMaster) return;
-
+function note(freq,start,duration,type='triangle',vol=.02){
   const osc=audioCtx.createOscillator();
   const gain=audioCtx.createGain();
+  const filter=audioCtx.createBiquadFilter();
 
   osc.type=type;
-  osc.frequency.value=freq;
+  osc.frequency.setValueAtTime(freq,start);
 
-  const now=audioCtx.currentTime;
-  gain.gain.setValueAtTime(0.0001,now);
-  gain.gain.exponentialRampToValueAtTime(volume,now+.12);
-  gain.gain.exponentialRampToValueAtTime(0.0001,now+duration);
+  filter.type='lowpass';
+  filter.frequency.setValueAtTime(2800,start);
 
-  osc.connect(gain).connect(bgmMaster);
+  gain.gain.setValueAtTime(.0001,start);
+  gain.gain.linearRampToValueAtTime(vol,start+.02);
+  gain.gain.exponentialRampToValueAtTime(.0001,start+duration);
 
-  osc.start(now);
-  osc.stop(now+duration+.05);
+  osc.connect(filter).connect(gain).connect(bgmMaster);
+  osc.start(start);
+  osc.stop(start+duration+.03);
 }
 
-function bgmNoiseBurst(){
-  if(!audioCtx || !bgmMaster) return;
-
-  const buffer=audioCtx.createBuffer(1,audioCtx.sampleRate*2,audioCtx.sampleRate);
+function hiss(start){
+  const buffer=audioCtx.createBuffer(1,audioCtx.sampleRate*.15,audioCtx.sampleRate);
   const data=buffer.getChannelData(0);
 
   for(let i=0;i<data.length;i++){
-    data[i]=(Math.random()*2-1)*0.18;
+    data[i]=(Math.random()*2-1)*0.04;
   }
 
   const source=audioCtx.createBufferSource();
-  const filter=audioCtx.createBiquadFilter();
   const gain=audioCtx.createGain();
+  const filter=audioCtx.createBiquadFilter();
 
   source.buffer=buffer;
   filter.type='bandpass';
-  filter.frequency.value=850;
-  filter.Q.value=0.8;
+  filter.frequency.value=1400;
 
-  const now=audioCtx.currentTime;
-  gain.gain.setValueAtTime(0.0001,now);
-  gain.gain.exponentialRampToValueAtTime(0.006,now+.4);
-  gain.gain.exponentialRampToValueAtTime(0.0001,now+2);
+  gain.gain.setValueAtTime(.0001,start);
+  gain.gain.exponentialRampToValueAtTime(.004,start+.03);
+  gain.gain.exponentialRampToValueAtTime(.0001,start+.12);
 
   source.connect(filter).connect(gain).connect(bgmMaster);
-  source.start(now);
-  source.stop(now+2.1);
+  source.start(start);
 }
 
 function startBGM(){
@@ -1209,19 +1207,15 @@ function startBGM(){
   if(!audioCtx) initAudio();
 
   bgmMaster=audioCtx.createGain();
-  bgmMaster.gain.value=.18;
+  bgmMaster.gain.value=.28;
   bgmMaster.connect(audioCtx.destination);
 
-  // โดรนพื้นหลัง
-  [
-    [48,.028,'sine'],
-    [72,.018,'triangle'],
-    [96,.010,'triangle']
-  ].forEach(([f,v,t])=>{
+  // drone พื้นหลัง
+  [[41.2,.030],[55,.020]].forEach(([f,v])=>{
     const osc=audioCtx.createOscillator();
     const gain=audioCtx.createGain();
 
-    osc.type=t;
+    osc.type='sine';
     osc.frequency.value=f;
     gain.gain.value=v;
 
@@ -1229,33 +1223,44 @@ function startBGM(){
     osc.start();
   });
 
-  // ทำนองช้า ๆ
-  const melody = [330,294,262,220,262,294,392,330];
-  let step=0;
+  const beat=0.5; // ~120 BPM
+  const progression=[
+    [110,138,165],
+    [98,123,147],
+    [87,110,131],
+    [82,104,123]
+  ];
 
-  bgmIntervals.push(setInterval(()=>{
-    if(!bgmMaster || bgmMaster.gain.value===0) return;
+  let bar=0;
 
-    const note=melody[step % melody.length];
+  function schedule(){
+    if(bgmMuted) return;
 
-    bgmNote(note,2.8,'triangle',0.026);
+    const now=audioCtx.currentTime+.1;
+    const chord=progression[bar%progression.length];
 
-    if(step % 2 === 0){
-      bgmNote(note/2,4.0,'sine',0.012);
+    // คอร์ดยาวโปร่ง ๆ
+    chord.forEach((f,i)=>{
+      note(f, now, 1.9, 'triangle', .015-(i*.002));
+    });
+
+    // อาร์เปจจิโอเร็วขึ้น
+    const seq=[0,1,2,1,2,1,0,1];
+    for(let i=0;i<8;i++){
+      note(chord[seq[i]], now+i*(beat/2), .52, 'triangle', .030);
     }
 
-    if(step % 4 === 3){
-      bgmNote(note*1.5,1.5,'square',0.006);
-    }
+    // เสียงคล้ายเปียโนสังเคราะห์
+    note(chord[1]*2, now+beat*1.5, 1.1, 'sine', .014);
 
-    step++;
-  },2200));
+    // noise เบา ๆ
+    hiss(now+1.6);
 
-  // เสียงคล้ายสัญญาณรบกวน
-  bgmIntervals.push(setInterval(()=>{
-    if(!bgmMaster || bgmMaster.gain.value===0) return;
-    bgmNoiseBurst();
-  },9000));
+    bar++;
+  }
+
+  schedule();
+  bgmLoop=setInterval(schedule, beat*4*1000);
 }
 
 document.addEventListener('click', async ()=>{
@@ -1267,17 +1272,17 @@ document.addEventListener('click', async ()=>{
 },{once:true});
 
 const soundToggle=document.getElementById('soundToggle');
-
 if(soundToggle){
   soundToggle.onclick=()=>{
     if(!bgmMaster) return;
-
-    const muted=bgmMaster.gain.value===0;
-    bgmMaster.gain.value=muted ? .18 : 0;
-    soundToggle.textContent=muted ? '🔊' : '🔇';
+    bgmMuted=!bgmMuted;
+    bgmMaster.gain.value=bgmMuted?0:.28;
+    soundToggle.textContent=bgmMuted?'🔇':'🔊';
   };
 }
-// ===== END CINEMATIC SCI-FI BGM =====
+// ===== END JAZZY SCI-FI BGM =====
+
+
 
 
 
