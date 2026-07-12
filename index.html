@@ -82,7 +82,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 .shutter.ready{background:white;box-shadow:0 0 24px #fff}
 .miniRadar{position:absolute;right:14px;top:90px;width:88px;height:88px;border:1px solid #69ff9b88;border-radius:50%;background:#00130cb5;overflow:hidden}
 .miniRadar .sweep{animation-duration:1.8s}
-.miniDot{position:absolute;left:50%;top:12%;width:7px;height:7px;border-radius:50%;background:#ff5151;opacity:0;box-shadow:0 0 10px red}
+.miniDot{position:absolute;left:50%;top:12%;width:18px;height:18px;border-radius:50%;background:#ff5151;opacity:.85;box-shadow:0 0 18px red,0 0 40px red;transition:all .25s ease}
 .miniDot.on{animation:mini .8s}
 @keyframes mini{0%{opacity:1}100%{opacity:0}}
 
@@ -118,7 +118,7 @@ radial-gradient(circle at 50% 20%,#10241b 0,transparent 40%), #020806">
 
 <section id="boot" class="screen">
   <div class="card">
-    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V14</div>
+    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V15</div>
     <h1>SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
     <div class="permissions">
@@ -138,7 +138,7 @@ radial-gradient(circle at 50% 20%,#10241b 0,transparent 40%), #020806">
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">FIELD SCANNER • V14</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">FIELD SCANNER • V15</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -453,6 +453,8 @@ async function playJumpScare(){
 
   // ใช้ผีตัวเดียวกับในเกม
   holder.innerHTML=document.getElementById('ghost').outerHTML;
+  holder.querySelector('#ghost').style.opacity='1';
+  holder.querySelector('#ghost').classList.add('lock');
 
   wrap.style.display='flex';
   holder.style.opacity='1';
@@ -534,8 +536,12 @@ async function enterCamera(){
 
     cameraReady=true;
     permissions.cam=true;
+    
+    document.getElementById('ghost').classList.add('lock');
     await playJumpScare();
+    document.getElementById('ghost').classList.remove('lock');
     startGhostMovement();
+
     $('#camHint').textContent='หมุนตัวช้าๆ เพื่อค้นหาวิญญาณ';
   }catch(error){
     console.error('Camera open error:',error);
@@ -621,6 +627,22 @@ function onMotion(e){
  }
 }
 
+
+function updateMiniRadar(){
+  const dot = document.getElementById('miniDot');
+  if(!dot) return;
+
+  const relative = norm(ghostBearing - (heading || 0));
+  const radius = 34;
+
+  const rad = (relative - 90) * Math.PI / 180;
+  const x = 50 + Math.cos(rad) * radius;
+  const y = 50 + Math.sin(rad) * radius;
+
+  dot.style.left = x + '%';
+  dot.style.top = y + '%';
+}
+
 function updateCamera(beta){
  const dH=angleDiff(heading,ghostBearing),dP=Math.abs(beta-ghostPitch);
  const score=Math.max(0,1-dH/52)*Math.max(.2,1-dP/48);
@@ -628,6 +650,7 @@ function updateCamera(beta){
  $('#emf').textContent=(score*9.9).toFixed(1);
  const g=$('#ghost');g.classList.toggle('visible',score>.46);g.classList.toggle('lock',score>.78);
  $('#shutter').classList.toggle('ready',score>.72);
+ updateMiniRadar();
  $('#camHint').textContent=score>.78?'ตรวจพบวิญญาณ — ถ่ายเดี๋ยวนี้!':score>.45?'สัญญาณอยู่ใกล้มาก…':'หมุนตัวช้าๆ เพื่อค้นหาวิญญาณ';
  if(score>.55){const dot=$('#miniDot');dot.classList.remove('on');void dot.offsetWidth;dot.classList.add('on')}
  if(score>.78&&navigator.vibrate)navigator.vibrate(35);
