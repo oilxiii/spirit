@@ -55,7 +55,12 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 .message{height:42px;color:#9fc8b1;font-size:13px;line-height:1.4}
 .inline{display:flex;gap:8px}.inline button{flex:1}
 .smallbtn{padding:12px;border-radius:10px;border:1px solid #28573d;background:#0b2117;color:#bfffd5}
-#enterCamera{display:none;background:var(--danger);color:white;border:0;position:relative;z-index:50;pointer-events:auto}
+#enterCamera{
+ display:none;background:var(--danger);color:white;border:0;
+ position:relative;z-index:9999;pointer-events:auto;
+ touch-action:manipulation;-webkit-user-select:none;user-select:none;
+ min-height:56px;font-size:15px;font-weight:900
+}
 .signal{height:5px;background:#10291c;border-radius:10px;overflow:hidden;margin:8px 0 12px}.signal i{display:block;height:100%;width:10%;background:var(--green);box-shadow:0 0 12px var(--green);transition:width .3s}
 
 #camera{background:#000;flex-direction:column}
@@ -109,7 +114,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">STEP TRACKER</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">STEP TRACKER • V6</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -123,10 +128,17 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
   <div class="hunt-bottom">
     <div id="huntMessage" class="message">กำลังค้นหาคลื่นพลังงานผิดปกติ…</div>
     <div class="signal"><i id="signalBar"></i></div>
-    <div class="inline">
+    <div class="inline" id="radarControls">
       <button id="recalibrate" class="smallbtn">ตั้งทิศปัจจุบันเป็นด้านหน้า</button>
-      <button id="enterCamera" class="smallbtn">เปิดกล้องวิญญาณ</button>
     </div>
+    <button id="enterCamera"
+      type="button"
+      class="smallbtn"
+      onclick="enterCamera(); return false;"
+      ontouchend="enterCamera(); return false;"
+      style="margin-top:8px;width:100%">
+      เปิดกล้องวิญญาณ
+    </button>
   </div>
 </section>
 
@@ -363,6 +375,14 @@ function flashBlip(relative){
  const x=50+Math.cos(a)*r*100,y=50+Math.sin(a)*r*100,bl=$('#blip');
  bl.style.left=x+'%';bl.style.top=y+'%';bl.classList.remove('flash');void bl.offsetWidth;bl.classList.add('flash');
 }
+document.addEventListener('pointerup',(event)=>{
+ const target=event.target.closest?.('#enterCamera');
+ if(target){
+   event.preventDefault();
+   enterCamera();
+ }
+},{capture:true});
+
 $('#recalibrate').onclick=()=>{
   huntStartHeading=heading||0;
   targetBearing=norm(huntStartHeading+targetRelativeAngle);
@@ -370,15 +390,19 @@ $('#recalibrate').onclick=()=>{
   updateHunt();
 };
 
-const enterCameraButton = $('#enterCamera');
-enterCameraButton.addEventListener('click', (ev) => {
-  ev.preventDefault();
-  ev.stopPropagation();
-  enterCamera();
-});
 
 
+let openingCamera=false;
 async function enterCamera(){
+ if(openingCamera) return false;
+ openingCamera=true;
+
+ const button=$('#enterCamera');
+ if(button){
+   button.disabled=true;
+   button.textContent='กำลังเปิดกล้อง…';
+ }
+
  toast('กำลังเปิดกล้องวิญญาณ...');
  show('camera');
  // ผีอยู่ ณ จุดเดียวกับที่เรดาร์พาผู้เล่นมา ไม่สุ่มทิศใหม่
@@ -415,7 +439,15 @@ async function enterCamera(){
    const reason=cameraErrorText(e);
    $('#camHint').textContent='เปิดกล้องไม่ได้: '+reason;
    toast('เปิดกล้องไม่ได้: '+reason);
+ } finally {
+   openingCamera=false;
+   const button=$('#enterCamera');
+   if(button){
+     button.disabled=false;
+     button.textContent='เปิดกล้องวิญญาณ';
+   }
  }
+ return false;
 }
 function onOrientation(e){
  orientationReceived=true;
