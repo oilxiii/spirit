@@ -228,7 +228,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
     <span class="tape tl"></span><span class="tape br"></span>
     <div style="display:flex;align-items:center;justify-content:space-between">
       <div class="logo" style="margin-bottom:0">PARANORMAL FIELD UNIT</div>
-      <div class="case-id">BUILD V20</div>
+      <div class="case-id">BUILD V21</div>
     </div>
     <h1 style="margin-top:14px">SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มค้นหา ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
@@ -249,7 +249,7 @@ repeating-linear-gradient(0deg,#071710 0 1px,#020806 1px 4px)">
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">EMF RESONANCE • V20</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">EMF RESONANCE • V21</div><div id="accuracy" style="font-family:var(--f-tech);font-size:10px;letter-spacing:.02em;color:#607d6d;margin-top:2px">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -930,6 +930,8 @@ function spectralCaptureSound(){
   click.start(now+.59); click.stop(now+.68);
 }
 
+let captureBusy=false;
+
 async function playCaptureSequence(){
   const ghost=$('#ghost');
   const vortex=$('#captureVortex');
@@ -942,9 +944,126 @@ async function playCaptureSequence(){
     navigator.vibrate([35,25,55,35,110,55,180]);
   }
 
-  await playCaptureSequence();
+  document.body.classList.add('shakeCapture','flashCapture');
+  ghost.classList.remove('visible','lock');
+  ghost.classList.add('capturePull');
+  vortex.classList.add('active');
+  line.classList.add('active');
 
-show('result');beep(locked?1:.2,.25);
+  await new Promise(resolve=>setTimeout(resolve,780));
+
+  ghost.classList.remove('capturePull');
+  vortex.classList.remove('active');
+  line.classList.remove('active');
+  document.body.classList.remove('shakeCapture','flashCapture');
+
+  overlay.style.display='flex';
+  const lines=overlay.querySelectorAll('div > div');
+  if(lines[0]) lines[0].textContent='ANALYZING IMAGE...';
+  if(lines[1]) lines[1].textContent='EMF LOCKED';
+  if(lines[2]) lines[2].textContent='กำลังปิดผนึกสัญญาณ';
+
+  await new Promise(resolve=>setTimeout(resolve,1250));
+  overlay.style.display='none';
+}
+
+async function capture(){
+  if(captureBusy) return;
+
+  if(!cameraReady){
+    toast('ยังไม่สามารถเปิดกล้องได้');
+    return;
+  }
+
+  captureBusy=true;
+  const shutter=$('#shutter');
+  shutter.disabled=true;
+
+  try{
+    const locked=shutter.classList.contains('ready');
+    const video=$('#video');
+    const canvas=$('#photo');
+    const ctx=canvas.getContext('2d');
+    const width=1080;
+    const height=1440;
+
+    canvas.width=width;
+    canvas.height=height;
+
+    if(video.videoWidth){
+      const scale=Math.max(width/video.videoWidth,height/video.videoHeight);
+      const sourceWidth=width/scale;
+      const sourceHeight=height/scale;
+      const sourceX=(video.videoWidth-sourceWidth)/2;
+      const sourceY=(video.videoHeight-sourceHeight)/2;
+      ctx.drawImage(
+        video,
+        sourceX,sourceY,sourceWidth,sourceHeight,
+        0,0,width,height
+      );
+    }else{
+      const gradient=ctx.createLinearGradient(0,0,width,height);
+      gradient.addColorStop(0,'#1b2922');
+      gradient.addColorStop(1,'#020504');
+      ctx.fillStyle=gradient;
+      ctx.fillRect(0,0,width,height);
+    }
+
+    ctx.fillStyle='rgba(0,40,20,.12)';
+    ctx.fillRect(0,0,width,height);
+
+    if(locked){
+      drawGhost(ctx,width,height,.58);
+    }else if($('#ghost').classList.contains('visible')){
+      drawGhost(ctx,width,height,.13);
+    }
+
+    ctx.strokeStyle='rgba(180,255,210,.18)';
+    for(let y=0;y<height;y+=7){
+      ctx.beginPath();
+      ctx.moveTo(0,y);
+      ctx.lineTo(width,y);
+      ctx.stroke();
+    }
+
+    ctx.fillStyle='rgba(0,0,0,.55)';
+    ctx.fillRect(42,height-145,width-84,92);
+    ctx.fillStyle='#d8ffe8';
+    ctx.font='28px monospace';
+    ctx.fillText(
+      'SPIRIT RADAR / CASE '+String(Math.floor(Math.random()*9999)).padStart(4,'0'),
+      72,height-95
+    );
+    ctx.font='22px monospace';
+    ctx.fillText(new Date().toLocaleString('th-TH'),72,height-58);
+
+    if(ghostMoveTimer){
+      clearInterval(ghostMoveTimer);
+      ghostMoveTimer=null;
+    }
+
+    await playCaptureSequence();
+
+    if(stream){
+      stream.getTracks().forEach(track=>track.stop());
+      stream=null;
+    }
+
+    cameraReady=false;
+    $('#resultTitle').textContent=locked?'บันทึกสัญญาณสำเร็จ':'พบเพียงร่องรอย';
+    $('#resultSub').textContent=locked
+      ?'ภาพถูกสร้างบนอุปกรณ์ของคุณเท่านั้น'
+      :'ลองเข้าใกล้สัญญาณและจัดให้อยู่กลางกรอบมากขึ้น';
+
+    show('result');
+    beep(locked?1:.2,.25);
+  }catch(error){
+    console.error('Capture error:',error);
+    toast('ไม่สามารถบันทึกสัญญาณได้');
+  }finally{
+    captureBusy=false;
+    shutter.disabled=false;
+  }
 }
 
 
