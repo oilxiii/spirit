@@ -98,7 +98,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="boot" class="screen active">
   <div class="card">
-    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V7</div>
+    <div class="logo">PARANORMAL FIELD UNIT</div><div style="font-size:13px;color:#ffc857;margin-bottom:10px;font-weight:900">BUILD V8</div>
     <h1>SPIRIT<br>RADAR</h1>
     <div class="sub">เตรียมเครื่องตรวจจับก่อนเริ่มภารกิจ ระบบจะขอสิทธิ์ทั้งหมดในขั้นตอนนี้ เพื่อไม่ให้ขัดจังหวะระหว่างเล่น</div>
     <div class="permissions">
@@ -113,7 +113,7 @@ h1{font-size:28px;line-height:1.05;margin:0 0 10px}
 
 <section id="hunt" class="screen">
   <header class="topbar">
-    <div><div class="status-title">STEP TRACKER • V7</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
+    <div><div class="status-title">STEP TRACKER • V8</div><div id="accuracy" style="font-size:10px;color:#607d6d">กำลังตั้งทิศอ้างอิง</div></div>
     <div id="distance" class="distance">-- ก้าว</div>
   </header>
   <div class="radar-wrap">
@@ -185,7 +185,7 @@ let targetRelativeAngle=0, huntStartHeading=0;
 let lastBeta=80;
 
 function show(name){Object.values(screens).forEach(x=>x.classList.remove('active'));screens[name].classList.add('active')}
-function setState(id,text,ok){const el=$(id);el.textContent=text;el.className='state '+(ok?'ok':'bad')}
+function setState(id,text,ok){const el=$(id);if(!el)return;el.textContent=text;el.className='state '+(ok?'ok':'bad')}
 function toast(t){const x=$('#toast');x.textContent=t;x.style.display='block';setTimeout(()=>x.style.display='none',2200)}
 function norm(a){return (a%360+360)%360}
 function angleDiff(a,b){let d=Math.abs(norm(a)-norm(b));return Math.min(d,360-d)}
@@ -265,7 +265,6 @@ $('#prepare').onclick=async()=>{
   btn.textContent='เริ่มภารกิจ';
   btn.onclick=startGame;
 };
-$('#reloadPage').onclick=()=>location.reload();
 
 
 function startGame(){
